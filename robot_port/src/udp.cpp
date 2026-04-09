@@ -26,3 +26,11 @@ void UDP::cmd_vel_callback(const geometry_msgs::msg::Twist::SharedPtr msg)
     RCLCPP_INFO(this->get_logger(), "Received cmd_vel: linear_x=%.2f, angular_z=%.2f",
                 msg->linear.x, msg->angular.z);
 }
+
+int main(int argc, char const *argv[])
+{
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<UDP>());
+    rclcpp::shutdown();
+    return 0;
+}

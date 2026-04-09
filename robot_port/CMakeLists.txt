@@ -13,7 +13,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
-add_executable(udp src/udp.cpp)
+add_executable(udp src/udp.cpp src/simple_udp.cpp)
 ament_target_dependencies(udp rclcpp geometry_msgs)
 
 target_include_directories(udp PUBLIC
