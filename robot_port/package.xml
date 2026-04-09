@@ -3,8 +3,8 @@
 <package format="3">
   <name>robot_port</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="8gn24gn25@gmail.com">gn10</maintainer>
+  <description>Package for communicating from ROS2 to a robot</description>
+  <maintainer email="contact@gn10.org">aiba-gento</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
