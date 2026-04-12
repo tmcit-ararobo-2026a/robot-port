@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.8)
 project(robot_port)
 
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -20,8 +23,16 @@ target_include_directories(udp PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
+add_executable(can src/can.cpp src/linux_can_interface.cpp)
+ament_target_dependencies(can rclcpp geometry_msgs)
+
+target_include_directories(can PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
 install(TARGETS
   udp
+  can
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
