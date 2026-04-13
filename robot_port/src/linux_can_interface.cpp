@@ -1,31 +1,28 @@
-#include "robot_port/linux_can_interface.hpp"
-
-#include <fcntl.h>
+#include "gn10_can/drivers/linux_can_driver.hpp"
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <unistd.h>
-
+#include <fcntl.h>
 #include <cstring>
+#include <algorithm>
 
-LinuxCanInterface::LinuxCanInterface(const std::string& interface_name)
-    : interface_name_(interface_name)
-{
-}
+namespace gn10_can {
+namespace drivers {
 
-LinuxCanInterface::~LinuxCanInterface()
-{
+LinuxCANDriver::LinuxCANDriver(const std::string& interface_name)
+    : interface_name_(interface_name) {}
+
+LinuxCANDriver::~LinuxCANDriver() {
     close();
 }
 
-bool LinuxCanInterface::open()
-{
+bool LinuxCANDriver::open() {
     socket_fd_ = socket(PF_CAN, SOCK_RAW, CAN_RAW);
     if (socket_fd_ < 0) return false;
 
-    // --- CAN FDを有効化する設定を追加 ---
+    // CAN FD 有効化
     int enable_canfd = 1;
     if (setsockopt(socket_fd_, SOL_CAN_RAW, CAN_RAW_FD_FRAMES, &enable_canfd, sizeof(enable_canfd)) < 0) {
-        // エラー処理（インターフェースがFD非対応など）
         return false;
     }
 
@@ -35,54 +32,65 @@ bool LinuxCanInterface::open()
 
     struct sockaddr_can addr;
     std::memset(&addr, 0, sizeof(addr));
-    addr.can_family  = AF_CAN;
+    addr.can_family = AF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;
 
-    if (bind(socket_fd_, (struct sockaddr*)&addr, sizeof(addr)) < 0) return false;
+    if (bind(socket_fd_, (struct sockaddr *)&addr, sizeof(addr)) < 0) return false;
 
-    // 非ブロックモードに設定（WaitSet/Event用）
+    // 非ブロックモード (WaitSet用)
     int flags = fcntl(socket_fd_, F_GETFL, 0);
     fcntl(socket_fd_, F_SETFL, flags | O_NONBLOCK);
 
     return true;
 }
 
-void LinuxCanInterface::close()
-{
+void LinuxCANDriver::close() {
     if (socket_fd_ >= 0) {
         ::close(socket_fd_);
         socket_fd_ = -1;
     }
 }
 
-bool LinuxCanInterface::send(uint32_t id, std::span<const uint8_t> data, bool is_extended)
-{
-    struct canfd_frame frame;
-    frame.can_id = id;
-    if (is_extended) frame.can_id |= CAN_EFF_FLAG;
+bool LinuxCANDriver::send(const FDCANFrame& frame) {
+    struct canfd_frame raw_frame;
+    std::memset(&raw_frame, 0, sizeof(raw_frame));
 
-    frame.len = static_cast<uint8_t>(std::min<size_t>(data.size(), CAN_MAX_DLEN));
-    std::memcpy(frame.data, data.data(), frame.len);
+    raw_frame.can_id = frame.id;
+    if (frame.is_extended) raw_frame.can_id |= CAN_EFF_FLAG;
+    
+    // FDフラグ (BRS: Bit Rate Switch) の適用
+    if (frame.use_fd_brs) raw_frame.flags |= CANFD_BRS;
 
-    ssize_t nbytes = write(socket_fd_, &frame, sizeof(struct canfd_frame));
+    raw_frame.len = static_cast<uint8_t>(std::min<size_t>(frame.data.size(), CANFD_MAX_DLEN));
+    std::memcpy(raw_frame.data, frame.data.data(), raw_frame.len);
 
+    ssize_t nbytes = write(socket_fd_, &raw_frame, sizeof(struct canfd_frame));
+    
     if (nbytes < 0) {
-        if (errno == ENOBUFS) {
-            // 必要に応じて内部usleepリトライを入れるか、上位にエラーを投げる
-            return false;
-        }
+        // ENOBUFS 等のエラーハンドリングが必要ならここに記述
         return false;
     }
     return nbytes == sizeof(struct canfd_frame);
 }
 
-std::optional<struct canfd_frame> LinuxCanInterface::receive()
-{
-    struct canfd_frame frame;
-    ssize_t nbytes = read(socket_fd_, &frame, sizeof(struct canfd_frame));
+bool LinuxCANDriver::receive(FDCANFrame& out_frame) {
+    struct canfd_frame raw_frame;
+    ssize_t nbytes = read(socket_fd_, &raw_frame, sizeof(struct canfd_frame));
 
-    if (nbytes < (ssize_t)sizeof(struct canfd_frame)) {
-        return std::nullopt;  // データがない、またはエラー
+    // Classic CAN (16 bytes) か CAN FD (72 bytes) のいずれかを受け入れる
+    if (nbytes != CAN_MTU && nbytes != CANFD_MTU) {
+        return false;
     }
-    return frame;
+
+    // FDCANFrame への変換処理
+    out_frame.id = raw_frame.can_id & CAN_EFF_MASK;
+    out_frame.is_extended = (raw_frame.can_id & CAN_EFF_FLAG);
+    out_frame.use_fd_brs = (raw_frame.flags & CANFD_BRS);
+    
+    out_frame.data.assign(raw_frame.data, raw_frame.data + raw_frame.len);
+
+    return true;
 }
+
+}  // namespace drivers
+}  // namespace gn10_can

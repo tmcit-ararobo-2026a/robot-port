@@ -1,40 +1,58 @@
+/**
+ * @file linux_can_driver.hpp
+ * @author Gento Aiba
+ * @brief SocketCANを用いたLinux用CAN FDドライバークラス
+ */
 #pragma once
 
+#include "gn10_can/drivers/driver_interface.hpp"
+#include <string>
 #include <linux/can.h>
 #include <linux/can/raw.h>
 #include <net/if.h>
 
-#include <optional>
-#include <span>
-#include <string>
-#include <vector>
+namespace gn10_can {
+namespace drivers {
 
-class LinuxCanInterface
+class LinuxCANDriver : public IFDCANDriver
 {
 public:
-    explicit LinuxCanInterface(const std::string& interface_name = "can0");
-    ~LinuxCanInterface();
+    explicit LinuxCANDriver(const std::string& interface_name = "can0");
+    virtual ~LinuxCANDriver();
 
-    // コピー禁止（ソケット二重クローズ防止）
-    LinuxCanInterface(const LinuxCanInterface&)            = delete;
-    LinuxCanInterface& operator=(const LinuxCanInterface&) = delete;
+    // コピー禁止
+    LinuxCANDriver(const LinuxCANDriver&) = delete;
+    LinuxCANDriver& operator=(const LinuxCANDriver&) = delete;
 
+    /**
+     * @brief ソケットの初期化とバインド
+     */
     bool open();
+
+    /**
+     * @brief ソケットのクローズ
+     */
     void close();
 
-    // 送信: 成功/失敗を返す。ENOBUFS時は呼び出し側に委ねるか内部リトライ
-    bool send(uint32_t id, std::span<const uint8_t> data, bool is_extended = false);
+    /**
+     * @brief IFDCANDriverからの継承: フレーム送信
+     */
+    bool send(const FDCANFrame& frame) override;
 
-    // 受信: データがある場合のみcanfd_frameを返す
-    std::optional<struct canfd_frame> receive();
+    /**
+     * @brief IFDCANDriverからの継承: フレーム受信
+     */
+    bool receive(FDCANFrame& out_frame) override;
 
-    // WaitSet登録用にfdを公開
-    int get_socket_fd() const
-    {
-        return socket_fd_;
-    }
+    /**
+     * @brief WaitSet等で使用するためのファイル記述子取得
+     */
+    int get_socket_fd() const { return socket_fd_; }
 
 private:
     std::string interface_name_;
     int socket_fd_{-1};
 };
+
+}  // namespace drivers
+}  // namespace gn10_can
