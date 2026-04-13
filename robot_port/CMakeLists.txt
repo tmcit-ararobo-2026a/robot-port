@@ -29,6 +29,7 @@ ament_target_dependencies(can rclcpp geometry_msgs)
 
 target_include_directories(can PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/gn10_can/include>
   $<INSTALL_INTERFACE:include>)
 
 install(TARGETS
