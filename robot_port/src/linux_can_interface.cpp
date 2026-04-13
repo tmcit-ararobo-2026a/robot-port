@@ -22,6 +22,13 @@ bool LinuxCanInterface::open()
     socket_fd_ = socket(PF_CAN, SOCK_RAW, CAN_RAW);
     if (socket_fd_ < 0) return false;
 
+    // --- CAN FDを有効化する設定を追加 ---
+    int enable_canfd = 1;
+    if (setsockopt(socket_fd_, SOL_CAN_RAW, CAN_RAW_FD_FRAMES, &enable_canfd, sizeof(enable_canfd)) < 0) {
+        // エラー処理（インターフェースがFD非対応など）
+        return false;
+    }
+
     struct ifreq ifr;
     std::strncpy(ifr.ifr_name, interface_name_.c_str(), IFNAMSIZ);
     if (ioctl(socket_fd_, SIOCGIFINDEX, &ifr) < 0) return false;
@@ -50,14 +57,14 @@ void LinuxCanInterface::close()
 
 bool LinuxCanInterface::send(uint32_t id, std::span<const uint8_t> data, bool is_extended)
 {
-    struct can_frame frame;
+    struct canfd_frame frame;
     frame.can_id = id;
     if (is_extended) frame.can_id |= CAN_EFF_FLAG;
 
-    frame.can_dlc = static_cast<uint8_t>(std::min<size_t>(data.size(), CAN_MAX_DLEN));
-    std::memcpy(frame.data, data.data(), frame.can_dlc);
+    frame.len = static_cast<uint8_t>(std::min<size_t>(data.size(), CAN_MAX_DLEN));
+    std::memcpy(frame.data, data.data(), frame.len);
 
-    ssize_t nbytes = write(socket_fd_, &frame, sizeof(struct can_frame));
+    ssize_t nbytes = write(socket_fd_, &frame, sizeof(struct canfd_frame));
 
     if (nbytes < 0) {
         if (errno == ENOBUFS) {
@@ -66,15 +73,15 @@ bool LinuxCanInterface::send(uint32_t id, std::span<const uint8_t> data, bool is
         }
         return false;
     }
-    return nbytes == sizeof(struct can_frame);
+    return nbytes == sizeof(struct canfd_frame);
 }
 
-std::optional<struct can_frame> LinuxCanInterface::receive()
+std::optional<struct canfd_frame> LinuxCanInterface::receive()
 {
-    struct can_frame frame;
-    ssize_t nbytes = read(socket_fd_, &frame, sizeof(struct can_frame));
+    struct canfd_frame frame;
+    ssize_t nbytes = read(socket_fd_, &frame, sizeof(struct canfd_frame));
 
-    if (nbytes < (ssize_t)sizeof(struct can_frame)) {
+    if (nbytes < (ssize_t)sizeof(struct canfd_frame)) {
         return std::nullopt;  // データがない、またはエラー
     }
     return frame;

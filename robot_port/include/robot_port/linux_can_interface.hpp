@@ -25,8 +25,8 @@ public:
     // 送信: 成功/失敗を返す。ENOBUFS時は呼び出し側に委ねるか内部リトライ
     bool send(uint32_t id, std::span<const uint8_t> data, bool is_extended = false);
 
-    // 受信: データがある場合のみcan_frameを返す
-    std::optional<struct can_frame> receive();
+    // 受信: データがある場合のみcanfd_frameを返す
+    std::optional<struct canfd_frame> receive();
 
     // WaitSet登録用にfdを公開
     int get_socket_fd() const
