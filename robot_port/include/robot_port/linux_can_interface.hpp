@@ -5,7 +5,7 @@
  */
 #pragma once
 
-#include "gn10_can/drivers/driver_interface.hpp"
+#include "gn10_can/drivers/fdcan_driver_interface.hpp"
 #include <string>
 #include <linux/can.h>
 #include <linux/can/raw.h>
