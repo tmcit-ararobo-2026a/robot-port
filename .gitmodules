@@ -1,3 +1,6 @@
 [submodule "gn10_can"]
 	path = gn10_can
 	url = https://github.com/ararobo/gn10-can
+[submodule "robot_port/gn10_can"]
+	path = robot_port/gn10_can
+	url = https://github.com/ararobo/gn10-can
