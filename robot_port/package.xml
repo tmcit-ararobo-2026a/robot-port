@@ -14,6 +14,7 @@
   <depend>rclcpp</depend>
   <depend>geometry_msgs</depend>
   <depend>gn10_can</depend>
+  <exec_depend>ros2launch</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
