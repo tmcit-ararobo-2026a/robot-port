@@ -74,38 +74,33 @@ bool LinuxCANDriver::send(const FDCANFrame& frame) {
     struct canfd_frame raw_frame;
     std::memset(&raw_frame, 0, sizeof(raw_frame));
 
-    // IDと拡張フラグの設定
     raw_frame.can_id = frame.id;
     if (frame.is_extended) {
         raw_frame.can_id |= CAN_EFF_FLAG;
     }
 
-    // DLC設定 (FDCANの最大長64バイトに合わせる)
+    // FDCANの最大64バイトに対応
     raw_frame.len = std::min<uint8_t>(frame.dlc, static_cast<uint8_t>(CANFD_MAX_DLEN));
     std::memcpy(raw_frame.data, frame.data.data(), raw_frame.len);
     
-    // FD用フラグ設定 (BRS: 高速通信有効)
-    raw_frame.flags |= CANFD_BRS;
+    // 【重要】フラグを0にする。これで1Mbps(Nominal Bitrate)のままペイロード拡張(FD)のみ利用
+    raw_frame.flags = 0; 
 
-    // 送信処理（ENOBUFS時のリトライロジックを追加）
     ssize_t nbytes = write(socket_fd_, &raw_frame, sizeof(raw_frame));
     
     if (nbytes == -1) {
         if (errno == ENOBUFS) {
-            // 送信バッファがいっぱいの場合、少し待機して1回だけリトライ
-            // 以前のコードのロジックを継承
             usleep(1000); 
             nbytes = write(socket_fd_, &raw_frame, sizeof(raw_frame));
+        } else {
+            // ここでエラーが出た場合、ip linkの設定と矛盾しています
+            // 例: EINVALなら FD が有効になっていない、Message too longならMTU不足
+            // perror("gn10_can send"); 
+            return false;
         }
     }
 
-    if (nbytes != sizeof(raw_frame)) {
-        // それでも失敗した場合はエラーログ
-        // perror("gn10_can: write");
-        return false;
-    }
-
-    return true;
+    return nbytes == sizeof(raw_frame);
 }
 
 bool LinuxCANDriver::receive(FDCANFrame& out_frame) {
