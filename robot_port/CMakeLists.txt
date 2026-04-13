@@ -8,7 +8,6 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-add_subdirectory(gn10_can)
 # find dependencies
 find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
@@ -16,6 +15,7 @@ find_package(ament_cmake REQUIRED)
 # find_package(<dependency> REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(gn10_can REQUIRED)
 
 add_executable(udp src/udp.cpp src/simple_udp.cpp)
 ament_target_dependencies(udp rclcpp geometry_msgs)
@@ -25,7 +25,7 @@ target_include_directories(udp PUBLIC
   $<INSTALL_INTERFACE:include>)
 
 add_executable(can src/can.cpp src/linux_can_interface.cpp)
-ament_target_dependencies(can rclcpp geometry_msgs)
+ament_target_dependencies(can rclcpp geometry_msgs gn10_can)
 
 target_include_directories(can PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
