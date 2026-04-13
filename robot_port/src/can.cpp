@@ -1,37 +1,62 @@
 #include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/twist.hpp>
 #include <std_msgs/msg/u_int8_multi_array.hpp>
+#include <mutex>
 
-// 正しいパスでインクルード
+// ライブラリ群と定義のインクルード
+#include "gn10_can/core/can_bus.hpp"
 #include "robot_port/linux_can_interface.hpp"
+#include "gn10_can/devices/robot_control_hub_client.hpp"
+#include "robot_port/robot_data_config.hpp"
 
 using namespace std::chrono_literals;
 
 class LinuxCanNode : public rclcpp::Node
 {
 public:
-    // 型名を gn10_can::drivers::LinuxCANDriver に修正
-    LinuxCanNode() : Node("can_node"), can_intf_("can0")
+    LinuxCanNode() 
+        : Node("can_node"), 
+          can_driver_("can0"),
+          can_bus_(can_driver_),
+          // ID 0 の RobotControlHubClient をインスタンス化
+          control_hub_client_(can_bus_, 0)
     {
-        if (!can_intf_.open()) {
+        // 1. ドライバのオープン
+        if (!can_driver_.open()) {
             RCLCPP_ERROR(this->get_logger(), "Failed to open CAN interface!");
             throw std::runtime_error("CAN Open Failed");
         }
 
-        pub_can_rx_ = this->create_publisher<std_msgs::msg::UInt8MultiArray>("can_rx", 10);
+        // 2. operation_data_t の初期設定（ヘッダーを固定）
+        {
+            std::lock_guard<std::mutex> lock(data_mutex_);
+            current_operation_.header = operation_data_header; // 0xAB36
+            current_operation_.vx = 0.0f;
+            current_operation_.vy = 0.0f;
+            current_operation_.omega = 0.0f;
+        }
 
-        auto cb_group_tx = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-        auto sub_opt     = rclcpp::SubscriptionOptions();
-        sub_opt.callback_group = cb_group_tx;
-
-        sub_can_tx_ = this->create_subscription<std_msgs::msg::UInt8MultiArray>(
-            "can_tx",
-            10,
-            std::bind(&LinuxCanNode::tx_callback, this, std::placeholders::_1),
-            sub_opt
+        // 3. cmd_vel サブスクライバ
+        sub_cmd_vel_ = this->create_subscription<geometry_msgs::msg::Twist>(
+            "cmd_vel", 10, std::bind(&LinuxCanNode::cmd_vel_callback, this, std::placeholders::_1)
         );
 
-        rx_thread_ = std::thread(&LinuxCanNode::rx_worker, this);
-        RCLCPP_INFO(this->get_logger(), "CAN Node started using LinuxCANDriver.");
+        // 4. 100Hz 送信タイマー (10ms間隔)
+        timer_ = this->create_wall_timer(
+            10ms, std::bind(&LinuxCanNode::timer_callback, this)
+        );
+
+        // 5. 受信スレッド (Busのupdate用)
+        rx_thread_ = std::thread([this]() {
+            while (rclcpp::ok()) {
+                // Bus::update() で dispatch まで実行
+                can_bus_.update();
+                // CPU負荷を抑えるための微小スリープ
+                std::this_thread::sleep_for(1ms);
+            }
+        });
+
+        RCLCPP_INFO(this->get_logger(), "CAN Control Node started (100Hz Loop with header 0x%04X)", operation_data_header);
     }
 
     ~LinuxCanNode()
@@ -40,62 +65,46 @@ public:
     }
 
 private:
-    void tx_callback(const std_msgs::msg::UInt8MultiArray::SharedPtr msg)
+    // cmd_vel から operation_data_t へ変換
+    void cmd_vel_callback(const geometry_msgs::msg::Twist::SharedPtr msg)
     {
-        // gn10_can::FDCANFrame を作成して送信
-        gn10_can::FDCANFrame frame;
-        frame.id = 0x123; // 運用に合わせて変更してください
-        frame.is_extended = false;
-        frame.set_data(msg->data.data(), msg->data.size());
-
-        if (!can_intf_.send(frame)) {
-            RCLCPP_WARN(this->get_logger(), "CAN Send failed");
-        }
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        current_operation_.vx = msg->linear.x;
+        current_operation_.vy = msg->linear.y;
+        current_operation_.omega = msg->angular.z;
     }
 
-    void rx_worker()
+    // 100Hz で実行される送信処理
+    void timer_callback()
     {
-        int can_fd = can_intf_.get_socket_fd();
-
-        while (rclcpp::ok()) {
-            fd_set fds;
-            FD_ZERO(&fds);
-            FD_SET(can_fd, &fds);
-
-            struct timeval tv;
-            tv.tv_sec  = 0;
-            tv.tv_usec = 100000;
-
-            int ret = select(can_fd + 1, &fds, NULL, NULL, &tv);
-
-            if (ret > 0 && FD_ISSET(can_fd, &fds)) {
-                gn10_can::FDCANFrame rx_frame;
-                // receive() は bool を返す仕様に合わせて修正
-                while (can_intf_.receive(rx_frame)) {
-                    auto msg = std_msgs::msg::UInt8MultiArray();
-                    // dlc 分だけデータを assign
-                    msg.data.assign(rx_frame.data.begin(), rx_frame.data.begin() + rx_frame.dlc);
-                    pub_can_rx_->publish(msg);
-                }
-            }
+        operation_data_t op;
+        {
+            std::lock_guard<std::mutex> lock(data_mutex_);
+            op = current_operation_;
         }
+        
+        // RobotControlHubClient は内部で converter::pack (memcpy) 
+        // を使用するため、構造体をそのまま投げればOK
+        control_hub_client_.send_command(op);
     }
 
-    // ここを正しいクラス名に変更
-    gn10_can::drivers::LinuxCANDriver can_intf_;
-    
+    // メンバ変数
+    gn10_can::drivers::LinuxCANDriver can_driver_;
+    gn10_can::FDCANBus can_bus_;
+    gn10_can::devices::RobotControlHubClient<operation_data_t, feedback_data_t> control_hub_client_;
+
+    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr sub_cmd_vel_;
+    rclcpp::TimerBase::SharedPtr timer_;
     std::thread rx_thread_;
-    rclcpp::Publisher<std_msgs::msg::UInt8MultiArray>::SharedPtr pub_can_rx_;
-    rclcpp::Subscription<std_msgs::msg::UInt8MultiArray>::SharedPtr sub_can_tx_;
+
+    operation_data_t current_operation_;
+    std::mutex data_mutex_;
 };
 
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<LinuxCanNode>();
-    rclcpp::executors::StaticSingleThreadedExecutor executor;
-    executor.add_node(node);
-    executor.spin();
+    rclcpp::spin(std::make_shared<LinuxCanNode>());
     rclcpp::shutdown();
     return 0;
 }
