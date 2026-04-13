@@ -85,7 +85,7 @@ private:
                 // データが届いた！
                 while (auto frame = can_intf_.receive()) {
                     auto msg = std_msgs::msg::UInt8MultiArray();
-                    msg.data.assign(frame->data, frame->data + frame->can_dlc);
+                    msg.data.assign(frame->data, frame->data + frame->len);
                     pub_can_rx_->publish(msg);
                 }
             }
