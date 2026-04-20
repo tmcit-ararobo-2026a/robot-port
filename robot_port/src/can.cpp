@@ -1,12 +1,12 @@
-#include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/twist.hpp>
-#include <std_msgs/msg/u_int8_multi_array.hpp>
 #include <mutex>
+#include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/u_int8_multi_array.hpp>
 
 // ライブラリ群と定義のインクルード
 #include "gn10_can/core/can_bus.hpp"
-#include "robot_port/linux_can_interface.hpp"
 #include "gn10_can/devices/robot_control_hub_client.hpp"
+#include "robot_port/linux_can_interface.hpp"
 #include "robot_port/robot_data_config.hpp"
 
 using namespace std::chrono_literals;
@@ -14,8 +14,8 @@ using namespace std::chrono_literals;
 class LinuxCanNode : public rclcpp::Node
 {
 public:
-    LinuxCanNode() 
-        : Node("can_node"), 
+    LinuxCanNode()
+        : Node("can_node"),
           can_driver_("can0"),
           can_bus_(can_driver_),
           // ID 0 の RobotControlHubClient をインスタンス化
@@ -30,21 +30,26 @@ public:
         // 2. operation_data_t の初期設定（ヘッダーを固定）
         {
             std::lock_guard<std::mutex> lock(data_mutex_);
-            current_operation_.header = operation_data_header; // 0xAB36
-            current_operation_.vx = 0.0f;
-            current_operation_.vy = 0.0f;
-            current_operation_.omega = 0.0f;
+            current_operation_.header  = operation_data_header;  // 0xAB36
+            current_operation_.vx      = 0.0f;
+            current_operation_.vy      = 0.0f;
+            current_operation_.omega   = 0.0f;
+            button_operation_.cross    = 0;
+            button_operation_.triangle = 0;
         }
 
-        // 3. cmd_vel サブスクライバ
+        // 3.1 cmd_vel サブスクライバ
         sub_cmd_vel_ = this->create_subscription<geometry_msgs::msg::Twist>(
             "cmd_vel", 10, std::bind(&LinuxCanNode::cmd_vel_callback, this, std::placeholders::_1)
         );
 
-        // 4. 100Hz 送信タイマー (10ms間隔)
-        timer_ = this->create_wall_timer(
-            10ms, std::bind(&LinuxCanNode::timer_callback, this)
+        // 3.2 button サブスクライバ
+        sub_button_ = this->create_subscription<std_msgs::msg::Int32MultiArray>(
+            "button", 10, std::bind(&LinuxCanNode::)
         );
+
+        // 4. 100Hz 送信タイマー (10ms間隔)
+        timer_ = this->create_wall_timer(10ms, std::bind(&LinuxCanNode::timer_callback, this));
 
         // 5. 受信スレッド (Busのupdate用)
         rx_thread_ = std::thread([this]() {
@@ -56,7 +61,11 @@ public:
             }
         });
 
-        RCLCPP_INFO(this->get_logger(), "CAN Control Node started (100Hz Loop with header 0x%04X)", operation_data_header);
+        RCLCPP_INFO(
+            this->get_logger(),
+            "CAN Control Node started (100Hz Loop with header 0x%04X)",
+            operation_data_header
+        );
     }
 
     ~LinuxCanNode()
@@ -69,8 +78,8 @@ private:
     void cmd_vel_callback(const geometry_msgs::msg::Twist::SharedPtr msg)
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
-        current_operation_.vx = msg->linear.x;
-        current_operation_.vy = msg->linear.y;
+        current_operation_.vx    = msg->linear.x;
+        current_operation_.vy    = msg->linear.y;
         current_operation_.omega = msg->angular.z;
     }
 
@@ -82,8 +91,8 @@ private:
             std::lock_guard<std::mutex> lock(data_mutex_);
             op = current_operation_;
         }
-        
-        // RobotControlHubClient は内部で converter::pack (memcpy) 
+
+        // RobotControlHubClient は内部で converter::pack (memcpy)
         // を使用するため、構造体をそのまま投げればOK
         control_hub_client_.send_command(op);
     }
@@ -94,10 +103,12 @@ private:
     gn10_can::devices::RobotControlHubClient<operation_data_t, feedback_data_t> control_hub_client_;
 
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr sub_cmd_vel_;
+    rclcpp::Subscription<std_msgs::msg::Int32MultiArray>::SharedPtr sub_button_;
     rclcpp::TimerBase::SharedPtr timer_;
     std::thread rx_thread_;
 
     operation_data_t current_operation_;
+    button_data_t button_operation_;
     std::mutex data_mutex_;
 };
 
