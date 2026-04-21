@@ -29,14 +29,11 @@ public:
         // 2. operation_data_t の初期設定（ヘッダーを固定）
         {
             std::lock_guard<std::mutex> lock(data_mutex_);
-            command_.header   = operation_data_header;  // 0xAB36
-            command_.vx       = 0.0f;
-            command_.vy       = 0.0f;
-            command_.omega    = 0.0f;
-            command_.cross    = 0;
-            command_.cricle   = 0;
-            command_.square   = 0;
-            command_.triangle = 0;
+            command_.header  = operation_data_header;  // 0xAB36
+            command_.vx      = 0.0f;
+            command_.vy      = 0.0f;
+            command_.omega   = 0.0f;
+            command_.buttons = 0;
         }
 
         // 3.1 cmd_vel サブスクライバ
@@ -87,12 +84,7 @@ private:
     void button_callback(const std_msgs::msg::UInt8MultiArray::SharedPtr msg)
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
-        uint8_t command_data_;
-        command_data_     = msg->data[0];
-        command_.cross    = command_data_ & 1;  // cross
-        command_.cricle   = (command_data_ >> 1) & 1;
-        command_.triangle = (command_data_ >> 2) & 1;
-        command_.square   = (command_data_ >> 3) & 1;
+        command_.buttons = msg->data[0];
     }
 
     // 100Hz で実行される送信処理
