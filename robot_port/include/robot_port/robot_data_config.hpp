@@ -24,9 +24,8 @@ struct operation_data_t {
     float vx;         // x軸方向の速度[m/s]
     float vy;         // y軸方向の速度[m/s]
     float omega;      // 回転速度[rad/s]
-} __attribute__((__packed__));
-
-struct button_data_t {
     bool cross;
     bool triangle;
+    bool cricle;
+    bool square;
 } __attribute__((__packed__));

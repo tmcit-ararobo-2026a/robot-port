@@ -2,7 +2,6 @@
 #include <mutex>
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/u_int8_multi_array.hpp>
-
 // ライブラリ群と定義のインクルード
 #include "gn10_can/core/can_bus.hpp"
 #include "gn10_can/devices/robot_control_hub_client.hpp"
@@ -30,12 +29,14 @@ public:
         // 2. operation_data_t の初期設定（ヘッダーを固定）
         {
             std::lock_guard<std::mutex> lock(data_mutex_);
-            current_operation_.header  = operation_data_header;  // 0xAB36
-            current_operation_.vx      = 0.0f;
-            current_operation_.vy      = 0.0f;
-            current_operation_.omega   = 0.0f;
-            button_operation_.cross    = 0;
-            button_operation_.triangle = 0;
+            command_.header   = operation_data_header;  // 0xAB36
+            command_.vx       = 0.0f;
+            command_.vy       = 0.0f;
+            command_.omega    = 0.0f;
+            command_.cross    = 0;
+            command_.cricle   = 0;
+            command_.square   = 0;
+            command_.triangle = 0;
         }
 
         // 3.1 cmd_vel サブスクライバ
@@ -44,8 +45,8 @@ public:
         );
 
         // 3.2 button サブスクライバ
-        sub_button_ = this->create_subscription<std_msgs::msg::Int32MultiArray>(
-            "button", 10, std::bind(&LinuxCanNode::)
+        sub_button_ = this->create_subscription<std_msgs::msg::UInt8MultiArray>(
+            "button", 10, std::bind(&LinuxCanNode::button_callback, this, std::placeholders::_1)
         );
 
         // 4. 100Hz 送信タイマー (10ms間隔)
@@ -78,9 +79,20 @@ private:
     void cmd_vel_callback(const geometry_msgs::msg::Twist::SharedPtr msg)
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
-        current_operation_.vx    = msg->linear.x;
-        current_operation_.vy    = msg->linear.y;
-        current_operation_.omega = msg->angular.z;
+        command_.vx    = msg->linear.x;
+        command_.vy    = msg->linear.y;
+        command_.omega = msg->angular.z;
+    }
+
+    void button_callback(const std_msgs::msg::UInt8MultiArray::SharedPtr msg)
+    {
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        uint8_t command_data_;
+        command_data_     = msg->data[0];
+        command_.cross    = command_data_ & 1;  // cross
+        command_.cricle   = (command_data_ >> 1) & 1;
+        command_.triangle = (command_data_ >> 2) & 1;
+        command_.square   = (command_data_ >> 3) & 1;
     }
 
     // 100Hz で実行される送信処理
@@ -89,7 +101,7 @@ private:
         operation_data_t op;
         {
             std::lock_guard<std::mutex> lock(data_mutex_);
-            op = current_operation_;
+            op = command_;
         }
 
         // RobotControlHubClient は内部で converter::pack (memcpy)
@@ -103,12 +115,11 @@ private:
     gn10_can::devices::RobotControlHubClient<operation_data_t, feedback_data_t> control_hub_client_;
 
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr sub_cmd_vel_;
-    rclcpp::Subscription<std_msgs::msg::Int32MultiArray>::SharedPtr sub_button_;
+    rclcpp::Subscription<std_msgs::msg::UInt8MultiArray>::SharedPtr sub_button_;
     rclcpp::TimerBase::SharedPtr timer_;
     std::thread rx_thread_;
 
-    operation_data_t current_operation_;
-    button_data_t button_operation_;
+    operation_data_t command_;
     std::mutex data_mutex_;
 };
 
