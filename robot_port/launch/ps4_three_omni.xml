@@ -2,5 +2,4 @@
 <launch>
   <node pkg="robot_port" exec="can"/>
   <node pkg="manual" exec="joy_to_twist_node"/>
-  <node pkg="joy" exec="joy_node"/>
 </launch>
