@@ -51,8 +51,8 @@ jobs:
           rosdep update --rosdistro humble
           rosdep install --from-paths . --skip-keys gn10_can -y --rosdistro humble
 
+          colcon build --packages-select gn10_can --cmake-args -DBUILD_FOR_ROS2=ON
           colcon build \
             --cmake-args \
               -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-              -DBUILD_FOR_ROS2=ON
+              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
