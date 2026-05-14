@@ -17,24 +17,16 @@ find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(gn10_can REQUIRED)
 
-add_executable(udp src/udp.cpp src/simple_udp.cpp)
-ament_target_dependencies(udp rclcpp geometry_msgs)
+add_executable(can_node src/can_node.cpp src/linux_can_interface.cpp)
+ament_target_dependencies(can_node rclcpp geometry_msgs gn10_can)
 
-target_include_directories(udp PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-
-add_executable(can src/can.cpp src/linux_can_interface.cpp)
-ament_target_dependencies(can rclcpp geometry_msgs gn10_can)
-
-target_include_directories(can PUBLIC
+target_include_directories(can_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/gn10_can/include>
   $<INSTALL_INTERFACE:include>)
 
 install(TARGETS
-  udp
-  can
+  can_node
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch
