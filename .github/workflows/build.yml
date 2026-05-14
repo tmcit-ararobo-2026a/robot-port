@@ -26,14 +26,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        submodules: recursive
       - uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/.ccache
           key: ccache-ros2-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
             ccache-ros2-${{ runner.os }}-
-          submodules: recursive
 
       - name: Build
         run: |
@@ -51,8 +50,8 @@ jobs:
           rosdep update --rosdistro humble
           rosdep install --from-paths . --skip-keys gn10_can -y --rosdistro humble
 
-          colcon build --packages-select gn10_can --cmake-args -DBUILD_FOR_ROS2=ON
           colcon build \
             --cmake-args \
               -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+              -DBUILD_FOR_ROS2=ON
