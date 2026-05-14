@@ -33,6 +33,7 @@ jobs:
           key: ccache-ros2-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
             ccache-ros2-${{ runner.os }}-
+          submodules: recursive
 
       - name: Build
         run: |
