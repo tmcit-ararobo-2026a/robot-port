@@ -49,7 +49,7 @@ jobs:
           ccache --max-size=500M
 
           rosdep update --rosdistro humble
-          rosdep install --from-paths . -y --rosdistro humble
+          rosdep install --from-paths . --skip-keys gn10_can -y --rosdistro humble
 
           colcon build \
             --cmake-args \
