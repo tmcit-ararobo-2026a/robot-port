@@ -48,9 +48,10 @@ jobs:
           ccache --max-size=500M
 
           rosdep update --rosdistro humble
-          rosdep install --from-paths . --ignore-src -y --rosdistro humble
+          rosdep install --from-paths . -y --rosdistro humble
 
           colcon build \
             --cmake-args \
               -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+              -DBUILD_FOR_ROS2=ON
