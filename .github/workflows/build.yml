@@ -26,7 +26,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          submodules: recursive
       - uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/.ccache
@@ -48,9 +49,10 @@ jobs:
           ccache --max-size=500M
 
           rosdep update --rosdistro humble
-          rosdep install --from-paths . --ignore-src -y --rosdistro humble
+          rosdep install --from-paths . --skip-keys gn10_can -y --rosdistro humble
 
           colcon build \
             --cmake-args \
               -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+              -DBUILD_FOR_ROS2=ON
