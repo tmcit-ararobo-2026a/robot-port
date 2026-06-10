@@ -33,6 +33,7 @@ public:
             command_.belt_velocity    = 0.0f;
             command_.arm_horizontal   = 0.0f;
             command_.arm_vertical     = 0.0f;
+            command_.air_throw        = 0.0f;
             command_.arm_hold         = false;
             command_.belt_throw       = false;
             command_.collect          = false;
@@ -69,6 +70,11 @@ public:
                 command_.collect = msg->data;
             }
         );
+        sub_air_throw_ = this->create_subscription<std_msgs::msg::Float32>(
+            "/air/throw", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
+                command_.air_throw = msg->data
+            }
+        );
 
         // 4. 100Hz 送信タイマー (10ms間隔)
         timer_ = this->create_wall_timer(10ms, std::bind(&CANNode::timer_callback, this));
@@ -96,6 +102,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_wheel_back_left_;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_wheel_back_right_;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_belt_velocity_;
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_air_throw_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_belt_throw_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_collect_;
     rclcpp::TimerBase::SharedPtr timer_;
