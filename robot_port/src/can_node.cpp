@@ -72,7 +72,7 @@ public:
         );
         sub_air_throw_ = this->create_subscription<std_msgs::msg::Bool>(
             "/air/throw", 10, [this](std_msgs::msg::Bool::SharedPtr msg) {
-                command_.air_throw = msg->data
+                command_.air_throw = msg->data;
             }
         );
 
