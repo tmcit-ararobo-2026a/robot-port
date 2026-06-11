@@ -30,5 +30,6 @@ struct operation_data_t {
     bool arm_hold;
     bool belt_throw;
     bool collect;
+    bool air_throw;
     uint8_t reserved[3];
 } __attribute__((__packed__));
