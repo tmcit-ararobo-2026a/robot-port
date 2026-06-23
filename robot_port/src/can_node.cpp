@@ -56,7 +56,7 @@ public:
             }
         );
         sub_belt_velocity_ = this->create_subscription<std_msgs::msg::Float32>(
-            "/belt/velocity", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
+            "/belt/speed_ratio", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
                 command_.belt_velocity = msg->data;
             }
         );
@@ -75,6 +75,11 @@ public:
                 command_.air_throw = msg->data;
             }
         );
+        sub_arm_hold_ = this->create_subscription<std_msgs::msg::Bool>(
+            "/arm/hold", 10, [this](std_msgs::msg::Bool::SharedPtr msg) {
+                command_.arm_hold = msg->data;
+            }
+        )
         sub_arm_horizontal_ = this->create_subscription<std_msgs::msg::Float32>(
             "/arm/horizontal", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
                 command_.arm_horizontal = msg->data;
@@ -114,6 +119,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_air_throw_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_belt_throw_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_collect_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_arm_hold_;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_arm_horizontal_;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_arm_vertical_;
     rclcpp::TimerBase::SharedPtr timer_;
