@@ -79,7 +79,7 @@ public:
             "/arm/hold", 10, [this](std_msgs::msg::Bool::SharedPtr msg) {
                 command_.arm_hold = msg->data;
             }
-        )
+        );
         sub_arm_horizontal_ = this->create_subscription<std_msgs::msg::Float32>(
             "/arm/horizontal", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
                 command_.arm_horizontal = msg->data;
