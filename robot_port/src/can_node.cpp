@@ -33,6 +33,9 @@ public:
             command_.belt_velocity    = 0.0f;
             command_.arm_horizontal   = 0.0f;
             command_.arm_vertical     = 0.0f;
+            command_.desk_lift        = 0.0f;
+            command_.desk_depth       = 0.0f;
+            command_.desk_finger      = 0.0f;
             command_.air_throw        = false;
             command_.arm_hold         = false;
             command_.belt_throw       = false;
@@ -58,6 +61,21 @@ public:
         sub_belt_velocity_ = this->create_subscription<std_msgs::msg::Float32>(
             "/belt/speed_ratio", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
                 command_.belt_velocity = msg->data;
+            }
+        );
+        sub_desk_lift_ = this->create_subscription<std_msgs::msg::Float32>(
+            "/desk/lift", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
+                command_.desk_lift = msg->data;
+            }
+        );
+        sub_desk_depth_ = this->create_subscription<std_msgs::msg::Float32>(
+            "/desk/depth", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
+                command_.desk_depth = msg->data;
+            }
+        );
+        sub_desk_finger_ = this->create_subscription<std_msgs::msg::Float32>(
+            "/desk/finger", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
+                command_.desk_finger = msg->data;
             }
         );
         sub_belt_throw_ = this->create_subscription<std_msgs::msg::Bool>(
@@ -116,6 +134,9 @@ private:
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_wheel_back_left_;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_wheel_back_right_;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_belt_velocity_;
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_desk_lift_;
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_desk_depth_;
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_desk_finger_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_air_throw_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_belt_throw_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_collect_;
