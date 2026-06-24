@@ -64,17 +64,17 @@ public:
             }
         );
         sub_desk_lift_ = this->create_subscription<std_msgs::msg::Float32>(
-            "/belt/velocity", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
+            "/desk/lift", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
                 command_.desk_lift = msg->data;
             }
         );
         sub_desk_depth_ = this->create_subscription<std_msgs::msg::Float32>(
-            "/belt/velocity", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
+            "/desk/depth", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
                 command_.desk_depth = msg->data;
             }
         );
         sub_desk_finger_ = this->create_subscription<std_msgs::msg::Float32>(
-            "/belt/velocity", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
+            "/desk/finger", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
                 command_.desk_finger = msg->data;
             }
         );
