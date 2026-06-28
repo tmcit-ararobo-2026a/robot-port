@@ -40,6 +40,7 @@ public:
             command_.arm_hold         = false;
             command_.belt_throw       = false;
             command_.collect          = false;
+            command_.belt_init        = false;
         }
 
         // 3. ROS2 サブスクライバーの設定
@@ -93,6 +94,13 @@ public:
                 command_.air_throw = msg->data;
             }
         );
+
+        sub_belt_init = this->create_subscription<std_msgs::msg::Bool>(
+            "/belt/init", 10, [this](std_msgs::msg::Bool::SharedPtr msg) {
+                command_.belt_init = msg->data;
+            }
+        );
+
         sub_arm_hold_ = this->create_subscription<std_msgs::msg::Bool>(
             "/arm/hold", 10, [this](std_msgs::msg::Bool::SharedPtr msg) {
                 command_.arm_hold = msg->data;
@@ -141,6 +149,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_belt_throw_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_collect_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_arm_hold_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_belt_init;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_arm_horizontal_;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_arm_vertical_;
     rclcpp::TimerBase::SharedPtr timer_;
