@@ -1,24 +1,30 @@
-#include "robot_port/linux_can_interface.hpp"
+#include "robot_port/linux_fdcan_driver.hpp"
+
+#include <fcntl.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <cstring>
+
 #include <algorithm>
 #include <cerrno>
+#include <cstring>
 
 namespace gn10_can {
 namespace drivers {
 
-LinuxCANDriver::LinuxCANDriver(const std::string& interface_name)
-    : interface_name_(interface_name), socket_fd_(-1) {}
+LinuxFDCANDriver::LinuxFDCANDriver(const std::string& interface_name)
+    : interface_name_(interface_name), socket_fd_(-1)
+{
+}
 
-LinuxCANDriver::~LinuxCANDriver() {
+LinuxFDCANDriver::~LinuxFDCANDriver()
+{
     close();
 }
 
-bool LinuxCANDriver::open() {
+bool LinuxFDCANDriver::open()
+{
     // 1. ソケットの作成
     socket_fd_ = socket(PF_CAN, SOCK_RAW, CAN_RAW);
     if (socket_fd_ < 0) {
@@ -28,7 +34,9 @@ bool LinuxCANDriver::open() {
 
     // 2. CAN FD 有効化 (FDCANFrameを扱うために必須)
     int enable_canfd = 1;
-    if (setsockopt(socket_fd_, SOL_CAN_RAW, CAN_RAW_FD_FRAMES, &enable_canfd, sizeof(enable_canfd)) < 0) {
+    if (setsockopt(
+            socket_fd_, SOL_CAN_RAW, CAN_RAW_FD_FRAMES, &enable_canfd, sizeof(enable_canfd)
+        ) < 0) {
         perror("gn10_can: setsockopt CAN_RAW_FD_FRAMES");
         return false;
     }
@@ -45,9 +53,9 @@ bool LinuxCANDriver::open() {
     // 4. アドレスのバインド
     struct sockaddr_can addr;
     std::memset(&addr, 0, sizeof(addr));
-    addr.can_family = AF_CAN;
+    addr.can_family  = AF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;
-    if (bind(socket_fd_, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+    if (bind(socket_fd_, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         perror("gn10_can: bind");
         return false;
     }
@@ -61,7 +69,8 @@ bool LinuxCANDriver::open() {
     return true;
 }
 
-void LinuxCANDriver::close() {
+void LinuxFDCANDriver::close()
+{
     if (socket_fd_ >= 0) {
         if (::close(socket_fd_) < 0) {
             perror("gn10_can: close");
@@ -70,7 +79,8 @@ void LinuxCANDriver::close() {
     }
 }
 
-bool LinuxCANDriver::send(const FDCANFrame& frame) {
+bool LinuxFDCANDriver::send(const FDCANFrame& frame)
+{
     struct canfd_frame raw_frame;
     std::memset(&raw_frame, 0, sizeof(raw_frame));
 
@@ -82,20 +92,20 @@ bool LinuxCANDriver::send(const FDCANFrame& frame) {
     // FDCANの最大64バイトに対応
     raw_frame.len = std::min<uint8_t>(frame.dlc, static_cast<uint8_t>(CANFD_MAX_DLEN));
     std::memcpy(raw_frame.data, frame.data.data(), raw_frame.len);
-    
+
     // 【重要】フラグを0にする。これで1Mbps(Nominal Bitrate)のままペイロード拡張(FD)のみ利用
-    raw_frame.flags = 0; 
+    raw_frame.flags = 0;
 
     ssize_t nbytes = write(socket_fd_, &raw_frame, sizeof(raw_frame));
-    
+
     if (nbytes == -1) {
         if (errno == ENOBUFS) {
-            usleep(1000); 
+            usleep(1000);
             nbytes = write(socket_fd_, &raw_frame, sizeof(raw_frame));
         } else {
             // ここでエラーが出た場合、ip linkの設定と矛盾しています
             // 例: EINVALなら FD が有効になっていない、Message too longならMTU不足
-            // perror("gn10_can send"); 
+            // perror("gn10_can send");
             return false;
         }
     }
@@ -103,14 +113,15 @@ bool LinuxCANDriver::send(const FDCANFrame& frame) {
     return nbytes == sizeof(raw_frame);
 }
 
-bool LinuxCANDriver::receive(FDCANFrame& out_frame) {
+bool LinuxFDCANDriver::receive(FDCANFrame& out_frame)
+{
     // データの読み込みが可能か確認 (selectロジック)
     fd_set fds;
     struct timeval tv;
     FD_ZERO(&fds);
     FD_SET(socket_fd_, &fds);
-    tv.tv_sec = 0;
-    tv.tv_usec = 0; // 0に設定してポーリング
+    tv.tv_sec  = 0;
+    tv.tv_usec = 0;  // 0に設定してポーリング
 
     int ret = select(socket_fd_ + 1, &fds, NULL, NULL, &tv);
     if (ret <= 0) return false;
@@ -124,9 +135,9 @@ bool LinuxCANDriver::receive(FDCANFrame& out_frame) {
     }
 
     // FDCANFrameへのマッピング
-    out_frame.id = raw_frame.can_id & CAN_EFF_MASK;
+    out_frame.id          = raw_frame.can_id & CAN_EFF_MASK;
     out_frame.is_extended = static_cast<bool>(raw_frame.can_id & CAN_EFF_FLAG);
-    out_frame.dlc = raw_frame.len;
+    out_frame.dlc         = raw_frame.len;
 
     // データコピー
     size_t copy_len = std::min<size_t>(static_cast<size_t>(raw_frame.len), out_frame.data.size());

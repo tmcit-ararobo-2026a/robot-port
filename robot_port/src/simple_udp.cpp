@@ -8,27 +8,26 @@
  * @copyright Copyright (c) 2024
  *
  */
-#include <memory>
+#include "robot_port/simple_udp.hpp"
+
+#include <arpa/inet.h>
+#include <errno.h>  // For errno and EWOULDBLOCK
+#include <fcntl.h>  // For fcntl()
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <iostream>
-#include <arpa/inet.h>
 #include <unistd.h>
-#include <fcntl.h> // For fcntl()
-#include <errno.h> // For errno and EWOULDBLOCK
-#include "robot_port/simple_udp.hpp"
-#include <cstring>
 
-SimpleUDP::SimpleUDP()
-{
-}
+#include <cstring>
+#include <iostream>
+#include <memory>
+
+SimpleUDP::SimpleUDP() {}
 
 bool SimpleUDP::initSocket()
 {
     // DGRAMでUDPとしてソケット作成
     sock_ = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sock_ < 0)
-    {
+    if (sock_ < 0) {
         perror("socket");
         return false;
     }
@@ -46,8 +45,9 @@ bool SimpleUDP::initSocket()
 void SimpleUDP::setTxAddr(const uint8_t ip_address[4], const uint16_t port)
 {
     tx_addr_.sin_family = AF_INET;
-    tx_addr_.sin_port = htons(port);
-    tx_addr_.sin_addr.s_addr = (ip_address[0] << 24) | (ip_address[1] << 16) | (ip_address[2] << 8) | ip_address[3];
+    tx_addr_.sin_port   = htons(port);
+    tx_addr_.sin_addr.s_addr =
+        (ip_address[0] << 24) | (ip_address[1] << 16) | (ip_address[2] << 8) | ip_address[3];
     tx_addr_.sin_addr.s_addr = htonl(tx_addr_.sin_addr.s_addr);
 
     printf("tx_address: %s\n", inet_ntoa(tx_addr_.sin_addr));
@@ -57,11 +57,11 @@ void SimpleUDP::setTxAddr(const uint8_t ip_address[4], const uint16_t port)
 bool SimpleUDP::bindSocket(const uint8_t ip_address[4], const uint16_t port)
 {
     rx_addr_.sin_family = AF_INET;
-    rx_addr_.sin_port = htons(port);
-    rx_addr_.sin_addr.s_addr = (ip_address[0] << 24) | (ip_address[1] << 16) | (ip_address[2] << 8) | ip_address[3];
+    rx_addr_.sin_port   = htons(port);
+    rx_addr_.sin_addr.s_addr =
+        (ip_address[0] << 24) | (ip_address[1] << 16) | (ip_address[2] << 8) | ip_address[3];
     rx_addr_.sin_addr.s_addr = htonl(rx_addr_.sin_addr.s_addr);
-    if (bind(sock_, (struct sockaddr *)&rx_addr_, sizeof(rx_addr_)) < 0)
-    {
+    if (bind(sock_, (struct sockaddr*)&rx_addr_, sizeof(rx_addr_)) < 0) {
         perror("bind");
         return false;
     }
@@ -70,46 +70,43 @@ bool SimpleUDP::bindSocket(const uint8_t ip_address[4], const uint16_t port)
     return true;
 }
 
-bool SimpleUDP::sendPacket(uint8_t *data, uint8_t size, const uint8_t *ip_address, const uint16_t port)
+bool SimpleUDP::sendPacket(
+    uint8_t* data, uint8_t size, const uint8_t* ip_address, const uint16_t port
+)
 {
     struct sockaddr_in tx_addr;
     tx_addr.sin_family = AF_INET;
-    tx_addr.sin_port = htons(port);
-    tx_addr.sin_addr.s_addr = (ip_address[0] << 24) | (ip_address[1] << 16) | (ip_address[2] << 8) | ip_address[3];
+    tx_addr.sin_port   = htons(port);
+    tx_addr.sin_addr.s_addr =
+        (ip_address[0] << 24) | (ip_address[1] << 16) | (ip_address[2] << 8) | ip_address[3];
     tx_addr.sin_addr.s_addr = htonl(tx_addr.sin_addr.s_addr);
-    int status = sendto(sock_, data, size, 0, (struct sockaddr *)&tx_addr_, sizeof(tx_addr_));
-    if (status < 0)
-    {
+    int status = sendto(sock_, data, size, 0, (struct sockaddr*)&tx_addr_, sizeof(tx_addr_));
+    if (status < 0) {
         perror("sendto");
         return false;
     }
     return true;
 }
-bool SimpleUDP::sendPacket(uint8_t *data, uint8_t size)
+bool SimpleUDP::sendPacket(uint8_t* data, uint8_t size)
 {
-    int status = sendto(sock_, data, size, 0, (struct sockaddr *)&tx_addr_, sizeof(tx_addr_));
-    if (status < 0)
-    {
+    int status = sendto(sock_, data, size, 0, (struct sockaddr*)&tx_addr_, sizeof(tx_addr_));
+    if (status < 0) {
         perror("sendto");
         return false;
     }
     return true;
 }
 
-int SimpleUDP::recvPacket(uint8_t *buffer, uint8_t buffer_size)
+int SimpleUDP::recvPacket(uint8_t* buffer, uint8_t buffer_size)
 {
     struct sockaddr_in addr;
     socklen_t addr_len = sizeof(addr);
 
-    int rx_data_size = recvfrom(sock_, buffer, buffer_size, 0, (struct sockaddr *)&addr, &addr_len);
-    if (rx_data_size < 0)
-    {
-        if (errno == EWOULDBLOCK)
-        {
+    int rx_data_size = recvfrom(sock_, buffer, buffer_size, 0, (struct sockaddr*)&addr, &addr_len);
+    if (rx_data_size < 0) {
+        if (errno == EWOULDBLOCK) {
             return 0;
-        }
-        else
-        {
+        } else {
             perror("recvfrom");
             return -1;
         }
@@ -117,7 +114,7 @@ int SimpleUDP::recvPacket(uint8_t *buffer, uint8_t buffer_size)
     return rx_data_size;
 }
 
-void SimpleUDP::setInterface(const char *interface_name)
+void SimpleUDP::setInterface(const char* interface_name)
 {
     setsockopt(sock_, SOL_SOCKET, SO_BINDTODEVICE, interface_name, strlen(interface_name));
 }

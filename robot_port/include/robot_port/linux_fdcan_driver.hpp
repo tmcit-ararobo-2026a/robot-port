@@ -5,24 +5,26 @@
  */
 #pragma once
 
-#include "gn10_can/drivers/fdcan_driver_interface.hpp"
-#include <string>
 #include <linux/can.h>
 #include <linux/can/raw.h>
 #include <net/if.h>
 
+#include <string>
+
+#include "gn10_can/drivers/fdcan_driver_interface.hpp"
+
 namespace gn10_can {
 namespace drivers {
 
-class LinuxCANDriver : public IFDCANDriver
+class LinuxFDCANDriver : public IFDCANDriver
 {
 public:
-    explicit LinuxCANDriver(const std::string& interface_name = "can0");
-    virtual ~LinuxCANDriver();
+    explicit LinuxFDCANDriver(const std::string& interface_name = "can0");
+    virtual ~LinuxFDCANDriver();
 
     // コピー禁止
-    LinuxCANDriver(const LinuxCANDriver&) = delete;
-    LinuxCANDriver& operator=(const LinuxCANDriver&) = delete;
+    LinuxFDCANDriver(const LinuxFDCANDriver&)            = delete;
+    LinuxFDCANDriver& operator=(const LinuxFDCANDriver&) = delete;
 
     /**
      * @brief ソケットの初期化とバインド
@@ -47,7 +49,10 @@ public:
     /**
      * @brief WaitSet等で使用するためのファイル記述子取得
      */
-    int get_socket_fd() const { return socket_fd_; }
+    int get_socket_fd() const
+    {
+        return socket_fd_;
+    }
 
 private:
     std::string interface_name_;

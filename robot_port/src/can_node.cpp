@@ -4,7 +4,7 @@
 // ライブラリ群と定義のインクルード
 #include "gn10_can/core/can_bus.hpp"
 #include "gn10_can/devices/robot_control_hub_client.hpp"
-#include "robot_port/linux_can_interface.hpp"
+#include "robot_port/linux_fdcan_driver.hpp"
 #include "robot_port/robot_data_config.hpp"
 
 using namespace std::chrono_literals;
@@ -134,7 +134,7 @@ private:
     }
 
     // メンバ変数
-    gn10_can::drivers::LinuxCANDriver can_driver_;
+    gn10_can::drivers::LinuxFDCANDriver can_driver_;
     gn10_can::FDCANBus can_bus_;
     gn10_can::devices::RobotControlHubClient<operation_data_t, feedback_data_t> control_hub_client_;
 
