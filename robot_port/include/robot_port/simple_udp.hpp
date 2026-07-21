@@ -15,10 +15,10 @@
 class SimpleUDP
 {
 private:
-    int sock_;                   // ソケット
-    struct sockaddr_in tx_addr_; // 送信先アドレス
-    struct sockaddr_in rx_addr_; // 受信先アドレス
-    uint8_t rx_buffer_[255];     // 受信データ
+    int sock_;                    // ソケット
+    struct sockaddr_in tx_addr_;  // 送信先アドレス
+    struct sockaddr_in rx_addr_;  // 受信先アドレス
+    uint8_t rx_buffer_[255];      // 受信データ
 
 public:
     SimpleUDP();
@@ -61,7 +61,9 @@ public:
      * @return true 成功
      * @return false 失敗
      */
-    bool sendPacket(uint8_t *data, uint8_t data_size, const uint8_t *ip_address, const uint16_t port);
+    bool sendPacket(
+        uint8_t* data, uint8_t data_size, const uint8_t* ip_address, const uint16_t port
+    );
 
     /**
      * @brief パケットを送信する(事前にIPアドレスとポートを指定)
@@ -71,7 +73,7 @@ public:
      * @return true 成功
      * @return false 失敗
      */
-    bool sendPacket(uint8_t *data, uint8_t data_size);
+    bool sendPacket(uint8_t* data, uint8_t data_size);
 
     /**
      * @brief パケットを受信する
@@ -80,9 +82,9 @@ public:
      * @param buffer_size 受信するデータのサイズ又はバッファのサイズ
      * @return int 受信データのサイズ
      */
-    int recvPacket(uint8_t *buffer, uint8_t buffer_size);
+    int recvPacket(uint8_t* buffer, uint8_t buffer_size);
 
-    void setInterface(const char *interface_name);
+    void setInterface(const char* interface_name);
 
     /**
      * @brief ソケットを閉じる

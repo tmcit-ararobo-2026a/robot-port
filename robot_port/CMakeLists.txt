@@ -18,7 +18,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(gn10_can REQUIRED)
 find_package(std_msgs REQUIRED)
 
-add_executable(can_node src/can_node.cpp src/linux_can_interface.cpp)
+add_executable(can_node src/can_node.cpp src/linux_fdcan_driver.cpp)
 ament_target_dependencies(can_node rclcpp geometry_msgs gn10_can std_msgs)
 
 target_include_directories(can_node PUBLIC
