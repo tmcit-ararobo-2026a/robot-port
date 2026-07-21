@@ -10,7 +10,7 @@ namespace drivers {
 class LinuxUDPDriver : public IFDCANDriver
 {
 public:
-    LinuxUDPDriver();
+    explicit LinuxUDPDriver(const uint8_t my_ip[4], const uint8_t dis_ip[4], const uint16_t port);
     virtual ~LinuxUDPDriver();
 
     LinuxUDPDriver(const LinuxUDPDriver&)            = delete;
