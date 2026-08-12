@@ -1,11 +1,13 @@
+#include <geometry_msgs/msg/twist.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/float32.hpp>
-// ライブラリ群と定義のインクルード
+#include <std_msgs/msg/u_int8.hpp>
+
 #include "gn10_can/core/can_bus.hpp"
 #include "gn10_can/devices/robot_control_hub_client.hpp"
 #include "robot_port/linux_fdcan_driver.hpp"
-#include "robot_port/robot_data_config.hpp"
+#include "robot_port/robot_config.hpp"
 
 using namespace std::chrono_literals;
 
@@ -18,65 +20,24 @@ public:
           can_bus_(can_driver_),
           control_hub_client_(can_bus_, 0)
     {
-        // 1. ドライバのオープン
         if (!can_driver_.open()) {
             RCLCPP_ERROR(this->get_logger(), "Failed to open CAN interface!");
             throw std::runtime_error("CAN Open Failed");
         }
 
-        // 2. operation_data_t の初期設定（ヘッダーを固定）
-        {
-            command_.header           = operation_data_header;  // 0xAB36
-            command_.wheel_front      = 0.0f;
-            command_.wheel_back_left  = 0.0f;
-            command_.wheel_back_right = 0.0f;
-            command_.belt_velocity    = 0.0f;
-            command_.arm_horizontal   = 0.0f;
-            command_.arm_vertical     = 0.0f;
-            command_.desk_lift        = 0.0f;
-            command_.desk_depth       = 0.0f;
-            command_.desk_finger      = 0.0f;
-            command_.air_throw        = false;
-            command_.arm_hold         = false;
-            command_.belt_throw       = false;
-            command_.collect          = false;
-            command_.belt_init        = false;
-        }
+        command_.header = robot_config::header::operation;
 
-        // 3. ROS2 サブスクライバーの設定
-        sub_wheel_front_ = this->create_subscription<std_msgs::msg::Float32>(
-            "/wheel/front", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
-                command_.wheel_front = msg->data;
+        sub_cmd_vel_ = this->create_subscription<geometry_msgs::msg::Twist>(
+            "/cmd_vel", 10, [this](geometry_msgs::msg::Twist::SharedPtr msg) {
+                command_.x_vel       = msg->linear.x;
+                command_.y_vel       = msg->linear.y;
+                command_.angular_vel = msg->angular.z;
             }
         );
-        sub_wheel_back_left_ = this->create_subscription<std_msgs::msg::Float32>(
-            "/wheel/back_left", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
-                command_.wheel_back_left = msg->data;
-            }
-        );
-        sub_wheel_back_right_ = this->create_subscription<std_msgs::msg::Float32>(
-            "/wheel/back_right", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
-                command_.wheel_back_right = msg->data;
-            }
-        );
-        sub_belt_velocity_ = this->create_subscription<std_msgs::msg::Float32>(
+
+        sub_belt_vel_ = this->create_subscription<std_msgs::msg::Float32>(
             "/belt/speed_ratio", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
-                command_.belt_velocity = msg->data;
-            }
-        );
-        sub_desk_lift_ = this->create_subscription<std_msgs::msg::Float32>(
-            "/desk/lift", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
-                command_.desk_lift = msg->data;
-            }
-        );
-        sub_desk_depth_ = this->create_subscription<std_msgs::msg::Float32>(
-            "/desk/depth", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
-                command_.desk_depth = msg->data;
-            }
-        );
-        sub_desk_finger_ = this->create_subscription<std_msgs::msg::Float32>(
-            "/desk/finger", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
-                command_.desk_finger = msg->data;
+                command_.belt_vel = msg->data;
             }
         );
         sub_belt_throw_ = this->create_subscription<std_msgs::msg::Bool>(
@@ -84,77 +45,103 @@ public:
                 command_.belt_throw = msg->data;
             }
         );
-        sub_collect_ = this->create_subscription<std_msgs::msg::Bool>(
-            "/collect", 10, [this](std_msgs::msg::Bool::SharedPtr msg) {
-                command_.collect = msg->data;
-            }
-        );
-        sub_air_throw_ = this->create_subscription<std_msgs::msg::Bool>(
-            "/air/throw", 10, [this](std_msgs::msg::Bool::SharedPtr msg) {
-                command_.air_throw = msg->data;
-            }
-        );
-
         sub_belt_init = this->create_subscription<std_msgs::msg::Bool>(
             "/belt/init", 10, [this](std_msgs::msg::Bool::SharedPtr msg) {
                 command_.belt_init = msg->data;
             }
         );
 
-        sub_arm_hold_ = this->create_subscription<std_msgs::msg::Bool>(
-            "/arm/hold", 10, [this](std_msgs::msg::Bool::SharedPtr msg) {
-                command_.arm_hold = msg->data;
+        sub_bucket_arm_hight_ = this->create_subscription<std_msgs::msg::Float32>(
+            "/bucket/arm/hight", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
+                command_.bucket_arm_hight = static_cast<uint8_t>(msg->data) * 100.0f;  // m -> cm
             }
         );
-        sub_arm_horizontal_ = this->create_subscription<std_msgs::msg::Float32>(
-            "/arm/horizontal", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
-                command_.arm_horizontal = msg->data;
+        sub_bucket_arm_hold_ = this->create_subscription<std_msgs::msg::Bool>(
+            "/bucket/arm/hold", 10, [this](std_msgs::msg::Bool::SharedPtr msg) {
+                command_.bucket_arm_hold = msg->data;
             }
         );
-        sub_arm_vertical_ = this->create_subscription<std_msgs::msg::Float32>(
-            "/arm/vertical", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
-                command_.arm_vertical = msg->data;
+
+        sub_desk_pos_ = this->create_subscription<std_msgs::msg::Float32>(
+            "/desk/arm/pos", 10, [this](std_msgs::msg::Float32::SharedPtr msg) {
+                command_.desk_arm_pos = static_cast<uint8_t>(msg->data) * 100.0f;  // m -> cm
             }
         );
+        sub_desk_arm_hold_ = this->create_subscription<std_msgs::msg::Bool>(
+            "/desk/arm/hold", 10, [this](std_msgs::msg::Bool::SharedPtr msg) {
+                command_.desk_arm_hold = msg->data;
+            }
+        );
+
+        sub_loading_hook_phase_ = this->create_subscription<std_msgs::msg::UInt8>(
+            "/loading/hook/phase", 10, [this](std_msgs::msg::UInt8::SharedPtr msg) {
+                command_.loading_hook_phase = static_cast<uint8_t>(msg->data);
+            }
+        );
+        sub_shift_cloth_ = this->create_subscription<std_msgs::msg::Bool>(
+            "/loading/shift_cloth", 10, [this](std_msgs::msg::Bool::SharedPtr msg) {
+                command_.loading_shift_cloth = msg->data;
+            }
+        );
+
+        sub_air_rauncher_for_flag_ = this->create_subscription<std_msgs::msg::Bool>(
+            "/air_rauncher/for_flag", 10, [this](std_msgs::msg::Bool::SharedPtr msg) {
+                command_.air_rauncher_for_flag = msg->data;
+            }
+        );
+        sub_air_rauncher_for_desk_r_ = this->create_subscription<std_msgs::msg::Bool>(
+            "/air_rauncher/for_desk_r", 10, [this](std_msgs::msg::Bool::SharedPtr msg) {
+                command_.air_rauncher_for_desk_r = msg->data;
+            }
+        );
+        sub_air_rauncher_for_desk_l_ = this->create_subscription<std_msgs::msg::Bool>(
+            "/air_rauncher/for_desk_l", 10, [this](std_msgs::msg::Bool::SharedPtr msg) {
+                command_.air_rauncher_for_desk_l = msg->data;
+            }
+        );
+
         // 4. 100Hz 送信タイマー (10ms間隔)
         timer_ = this->create_wall_timer(10ms, std::bind(&CANNode::timer_callback, this));
 
         RCLCPP_INFO(
             this->get_logger(),
             "CAN Control Node started (100Hz Loop with header 0x%04X)",
-            operation_data_header
+            robot_config::header::operation
         );
     }
 
 private:
-    // 100Hz で実行される送信処理
     void timer_callback()
     {
         control_hub_client_.send_command(command_);
     }
 
-    // メンバ変数
     gn10_can::drivers::LinuxFDCANDriver can_driver_;
     gn10_can::FDCANBus can_bus_;
-    gn10_can::devices::RobotControlHubClient<operation_data_t, feedback_data_t> control_hub_client_;
-
-    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_wheel_front_;
-    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_wheel_back_left_;
-    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_wheel_back_right_;
-    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_belt_velocity_;
-    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_desk_lift_;
-    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_desk_depth_;
-    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_desk_finger_;
-    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_air_throw_;
+    gn10_can::devices::RobotControlHubClient<robot_config::operation_t, robot_config::feedback_t>
+        control_hub_client_;
+    // 足回り
+    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr sub_cmd_vel_;
+    // ベルト直動機構
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_belt_vel_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_belt_throw_;
-    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_collect_;
-    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_arm_hold_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_belt_init;
-    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_arm_horizontal_;
-    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_arm_vertical_;
+    // バケツ用アーム
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_bucket_arm_hight_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_bucket_arm_hold_;
+    // 机からの装填機構
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_desk_pos_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_desk_arm_hold_;
+    // 装填機構
+    rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr sub_loading_hook_phase_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_shift_cloth_;
+    // エアシリンダー射出
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_air_rauncher_for_flag_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_air_rauncher_for_desk_r_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_air_rauncher_for_desk_l_;
     rclcpp::TimerBase::SharedPtr timer_;
 
-    operation_data_t command_;
+    robot_config::operation_t command_;
 };
 
 int main(int argc, char** argv)
