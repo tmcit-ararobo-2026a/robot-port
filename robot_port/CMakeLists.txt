@@ -26,8 +26,16 @@ target_include_directories(can_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/gn10_can/include>
   $<INSTALL_INTERFACE:include>)
 
+add_executable(udp_node src/udp_node.cpp src/simple_udp.cpp)
+ament_target_dependencies(udp_node rclcpp std_msgs)
+
+target_include_directories(udp_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
 install(TARGETS
   can_node
+  udp_node
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch
