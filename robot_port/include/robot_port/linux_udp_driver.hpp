@@ -31,6 +31,10 @@ public:
      */
     bool send(const FDCANFrame& frame) override;
 
+    bool bind(uint16_t port);
+
+    ssize_t receive(uint8_t* buffer, size_t max_size);
+
     /**
      * @brief IFDCANDriverからの継承: フレーム受信
      */
