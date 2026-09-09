@@ -132,7 +132,7 @@ private:
                 pub_loading_belt_angle_->publish(belt_a_msg);
 
                 auto arm_h_msg = std_msgs::msg::Float32();
-                arm_h_msg.data = fb.bucket_arm_hight;
+                arm_h_msg.data = fb.bucket_arm_height;
                 pub_bucket_arm_hight_->publish(arm_h_msg);
 
                 RCLCPP_INFO(
