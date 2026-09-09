@@ -18,14 +18,15 @@ public:
             RCLCPP_ERROR(this->get_logger(), "Failed to init UDP socket!");
             throw std::runtime_error("UDP Init Failed");
         }
-
-        uint8_t host_ip[4] = {192, 168, 3, 1};
-        if (!udp_.bindSocket(host_ip, robot_config::port::cmd)) {
+        // 受信設定
+        if (!udp_.bindSocket(robot_config::ip::pc_robot, robot_config::port::cmd)) {
             RCLCPP_ERROR(
                 this->get_logger(), "Failed to bind UDP socket on port %d!", robot_config::port::cmd
             );
             throw std::runtime_error("UDP Bind Failed");
         }
+        // 送信先設定
+        udp_.setTxAddr(robot_config::ip::pc_robot, robot_config::port::cmd);
 
         // --- Publishers 初期化 ---
         pub_sequence_ =
