@@ -19,8 +19,8 @@ public:
             throw std::runtime_error("UDP Init Failed");
         }
 
-        uint8_t any_ip[4] = {0, 0, 0, 0};
-        if (!udp_.bindSocket(any_ip, robot_config::port::cmd)) {
+        uint8_t host_ip[4] = {192, 168, 3, 1};
+        if (!udp_.bindSocket(host_ip, robot_config::port::cmd)) {
             RCLCPP_ERROR(
                 this->get_logger(), "Failed to bind UDP socket on port %d!", robot_config::port::cmd
             );
