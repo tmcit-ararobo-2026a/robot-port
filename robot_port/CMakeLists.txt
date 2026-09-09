@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.10)
 project(robot_port)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -27,9 +27,6 @@ target_include_directories(udp_node PUBLIC
 install(TARGETS
   udp_node
   DESTINATION lib/${PROJECT_NAME})
-
-install(DIRECTORY launch
-    DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
