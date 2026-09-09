@@ -59,6 +59,34 @@ public:
         pub_bucket_arm_hight_ =
             this->create_publisher<std_msgs::msg::Float32>("/robot/feedback/bucket_arm_hight", 10);
 
+        sub_move_bucket_angle = this->create_subscription<std_msgs::msg::Float32>(
+            "/robot/command/move_bucket_angle",
+            10,
+            [this](const std_msgs::msg::Float32::SharedPtr msg) {
+                tx_command.value.move_bucket_angle_yaw_rad = msg->data;
+            }
+        );
+        sub_fixed_buckets_angle = this->create_subscription<std_msgs::msg::Float32MultiArray>(
+            "/robot/command/fixed_buckets_angle",
+            10,
+            [this](const std_msgs::msg::Float32MultiArray::SharedPtr msg) {
+                if (msg->data.size() >= 3) {
+                    tx_command.value.bucket1_angle_yaw_rad = msg->data[0];
+                    tx_command.value.bucket2_angle_yaw_rad = msg->data[1];
+                    tx_command.value.bucket3_angle_yaw_rad = msg->data[2];
+                }
+            }
+        );
+        sub_flag_angle = this->create_subscription<std_msgs::msg::Float32>(
+            "/robot/command/flag_angle", 10, [this](const std_msgs::msg::Float32::SharedPtr msg) {
+                tx_command.value.flag_angle_yaw_rad = msg->data;
+            }
+        );
+        sub_desk_angle = this->create_subscription<std_msgs::msg::Float32>(
+            "/robot/command/desk_angle", 10, [this](const std_msgs::msg::Float32::SharedPtr msg) {
+                tx_command.value.desk_angle_yaw_rad = msg->data;
+            }
+        );
         // 10ms (100Hz) 受信タイマー
         timer_ = this->create_wall_timer(10ms, std::bind(&UdpNode::timer_callback, this));
 
@@ -78,6 +106,10 @@ public:
 private:
     void timer_callback()
     {
+        // 送信データを送信
+        tx_command.value.header = robot_config::header::operation;
+        udp_.sendPacket(tx_command.binary, sizeof(tx_command));
+
         robot_config::feedback_u rx_feedback;
 
         // パケットを受信
@@ -141,13 +173,14 @@ private:
                     fb.sequence,
                     fb.drive_battery_voltages,
                     fb.drive_current,
-                    fb.bucket_arm_hight
+                    fb.bucket_arm_height
                 );
             }
         }
     }
 
     SimpleUDP udp_;
+    robot_config::command_u tx_command;
 
     // Publishers
     rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr pub_sequence_;
@@ -160,6 +193,11 @@ private:
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr pub_belt_launcher_velocity_;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr pub_loading_belt_angle_;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr pub_bucket_arm_hight_;
+    // Subscriber
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_move_bucket_angle;
+    rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr sub_fixed_buckets_angle;
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_flag_angle;
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_desk_angle;
 
     rclcpp::TimerBase::SharedPtr timer_;
 };
