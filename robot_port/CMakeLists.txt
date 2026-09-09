@@ -34,7 +34,6 @@ target_include_directories(udp_node PUBLIC
   $<INSTALL_INTERFACE:include>)
 
 install(TARGETS
-  can_node
   udp_node
   DESTINATION lib/${PROJECT_NAME})
 
