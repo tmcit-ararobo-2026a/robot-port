@@ -134,10 +134,8 @@ private:
                 arm_h_msg.data = fb.bucket_arm_hight;
                 pub_bucket_arm_hight_->publish(arm_h_msg);
 
-                RCLCPP_INFO_THROTTLE(
+                RCLCPP_INFO(
                     this->get_logger(),
-                    *this->get_clock(),
-                    1000,
                     "Feedback - Seq: %u, V_Drive: %.2fV, I_Drive: %.2fA, Bucket: %.2fm",
                     fb.sequence,
                     fb.drive_battery_voltages,
