@@ -111,8 +111,11 @@ private:
             if (!udp_.bindSocket(robot_config::ip::pc_robot, robot_config::port::cmd)) {
                 RCLCPP_WARN(
                     this->get_logger(),
-                    "Waiting for network interface (%s:%d)... Retrying in 1 second.",
-                    robot_config::ip::pc_robot,
+                    "Waiting for network interface (%d.%d.%d.%d:%d)... Retrying in 1 second.",
+                    robot_config::ip::pc_robot[0],
+                    robot_config::ip::pc_robot[1],
+                    robot_config::ip::pc_robot[2],
+                    robot_config::ip::pc_robot[3],
                     robot_config::port::cmd
                 );
                 udp_.closeSocket();  // バインド失敗時はソケットを閉じて再作成
