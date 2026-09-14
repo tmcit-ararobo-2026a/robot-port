@@ -3,6 +3,7 @@
 #include <std_msgs/msg/float32.hpp>
 #include <std_msgs/msg/float32_multi_array.hpp>
 #include <std_msgs/msg/u_int8.hpp>
+#include <thread>
 
 #include "robot_port/robot_config.hpp"
 #include "robot_port/simple_udp.hpp"
@@ -14,17 +15,9 @@ class UdpNode : public rclcpp::Node
 public:
     UdpNode() : Node("udp_node")
     {
-        if (!udp_.initSocket()) {
-            RCLCPP_ERROR(this->get_logger(), "Failed to init UDP socket!");
-            throw std::runtime_error("UDP Init Failed");
-        }
-        // 受信設定
-        if (!udp_.bindSocket(robot_config::ip::pc_robot, robot_config::port::cmd)) {
-            RCLCPP_ERROR(
-                this->get_logger(), "Failed to bind UDP socket on port %d!", robot_config::port::cmd
-            );
-            throw std::runtime_error("UDP Bind Failed");
-        }
+        // --- 有線LANおよびUDPソケットが有効になるまで待機 ---
+        init_udp_with_retry();
+
         // 送信先設定
         udp_.setTxAddr(robot_config::ip::pc_robot, robot_config::port::cmd);
 
@@ -104,6 +97,34 @@ public:
     }
 
 private:
+    void init_udp_with_retry()
+    {
+        while (rclcpp::ok()) {
+            if (!udp_.initSocket()) {
+                RCLCPP_WARN(
+                    this->get_logger(), "Failed to init UDP socket. Retrying in 1 second..."
+                );
+                std::this_thread::sleep_for(1s);
+                continue;
+            }
+
+            if (!udp_.bindSocket(robot_config::ip::pc_robot, robot_config::port::cmd)) {
+                RCLCPP_WARN(
+                    this->get_logger(),
+                    "Waiting for network interface (%s:%d)... Retrying in 1 second.",
+                    robot_config::ip::pc_robot,
+                    robot_config::port::cmd
+                );
+                udp_.closeSocket();  // バインド失敗時はソケットを閉じて再作成
+                std::this_thread::sleep_for(1s);
+                continue;
+            }
+
+            RCLCPP_INFO(this->get_logger(), "Successfully bound UDP socket!");
+            break;  // 接続成功したら抜け出す
+        }
+    }
+
     void timer_callback()
     {
         // 送信データを送信
