@@ -33,12 +33,15 @@ public:
         pub_drive_battery_voltage_ = this->create_publisher<std_msgs::msg::Float32>(
             "/robot/feedback/drive_battery_voltage", 10
         );
-        pub_logic_battery_voltages_ = this->create_publisher<std_msgs::msg::Float32MultiArray>(
-            "/robot/feedback/logic_battery_voltages", 10
-        );
         pub_drive_current_ =
             this->create_publisher<std_msgs::msg::Float32>("/robot/feedback/drive_current", 10);
-
+        // 記録
+        pub_belt_launcher_target_ = this->create_publisher<std_msgs::msg::Float32>(
+            "/robot/feedback/belt_launcher_target", 10
+        );
+        pub_belt_launcher_release_ = this->create_publisher<std_msgs::msg::Float32>(
+            "/robot/feedback/belt_launcher_release", 10
+        );
         // 各アクチュエータ
         pub_wheel_angular_velocity_ = this->create_publisher<std_msgs::msg::Float32MultiArray>(
             "/robot/feedback/wheel_angular_velocity", 10
@@ -162,13 +165,17 @@ private:
                 v_drive_msg.data = fb.drive_battery_voltages;
                 pub_drive_battery_voltage_->publish(v_drive_msg);
 
-                auto v_logic_msg = std_msgs::msg::Float32MultiArray();
-                v_logic_msg.data = {fb.logic_battery_voltages[0], fb.logic_battery_voltages[1]};
-                pub_logic_battery_voltages_->publish(v_logic_msg);
-
                 auto i_drive_msg = std_msgs::msg::Float32();
                 i_drive_msg.data = fb.drive_current;
                 pub_drive_current_->publish(i_drive_msg);
+
+                auto belt_target_msg = std_msgs::msg::Float32();
+                belt_target_msg.data = fb.belt_launcher_target_velocity;
+                pub_belt_launcher_target_->publish(belt_target_msg);
+
+                auto belt_release_msg = std_msgs::msg::Float32();
+                belt_release_msg.data = fb.last_belt_launcher_release_velocity;
+                pub_belt_launcher_release_->publish(belt_release_msg);
 
                 // 各アクチュエータ
                 auto wheel_msg = std_msgs::msg::Float32MultiArray();
@@ -211,7 +218,8 @@ private:
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pub_emergency_stop_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pub_over_current_;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr pub_drive_battery_voltage_;
-    rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr pub_logic_battery_voltages_;
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr pub_belt_launcher_target_;
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr pub_belt_launcher_release_;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr pub_drive_current_;
     rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr pub_wheel_angular_velocity_;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr pub_belt_launcher_velocity_;
