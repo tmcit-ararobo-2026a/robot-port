@@ -19,7 +19,7 @@ public:
         init_udp_with_retry();
 
         // 送信先設定
-        udp_.setTxAddr(robot_config::ip::pc_robot, robot_config::port::cmd);
+        udp_.setTxAddr(robot_config::ip::mainboard, robot_config::port::cmd);
 
         // --- Publishers 初期化 ---
         pub_sequence_ =
@@ -85,6 +85,7 @@ public:
         );
         // 10ms (100Hz) 受信タイマー
         timer_ = this->create_wall_timer(10ms, std::bind(&UdpNode::timer_callback, this));
+	timer_tx_ = this->create_wall_timer(100ms, std::bind(&UdpNode::tx_callback, this));
 
         RCLCPP_INFO(
             this->get_logger(),
@@ -133,10 +134,6 @@ private:
 
     void timer_callback()
     {
-        // 送信データを送信
-        tx_command.value.header = robot_config::header::operation;
-        udp_.sendPacket(tx_command.binary, sizeof(tx_command));
-
         robot_config::feedback_u rx_feedback;
 
         // パケットを受信
@@ -210,6 +207,13 @@ private:
         }
     }
 
+    void tx_callback()
+    {
+	// 送信データを送信
+        tx_command.value.header = robot_config::header::operation;
+        udp_.sendPacket(tx_command.binary, sizeof(tx_command));
+    }
+
     SimpleUDP udp_;
     robot_config::command_u tx_command;
 
@@ -232,6 +236,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_desk_angle;
 
     rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::TimerBase::SharedPtr timer_tx_;
 };
 
 int main(int argc, char* argv[])
