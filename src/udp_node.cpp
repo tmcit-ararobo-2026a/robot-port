@@ -59,7 +59,7 @@ public:
             "/robot/command/move_bucket_angle",
             10,
             [this](const std_msgs::msg::Float32::SharedPtr msg) {
-                tx_command.value.move_bucket_angle_yaw_rad = msg->data;
+                tx_command.value.move_bucket_angle_yaw_rad = -msg->data;
             }
         );
         sub_fixed_buckets_angle = this->create_subscription<std_msgs::msg::Float32MultiArray>(
@@ -67,20 +67,20 @@ public:
             10,
             [this](const std_msgs::msg::Float32MultiArray::SharedPtr msg) {
                 if (msg->data.size() >= 3) {
-                    tx_command.value.bucket1_angle_yaw_rad = msg->data[0];
-                    tx_command.value.bucket2_angle_yaw_rad = msg->data[1];
-                    tx_command.value.bucket3_angle_yaw_rad = msg->data[2];
+                    tx_command.value.bucket1_angle_yaw_rad = -msg->data[0];
+                    tx_command.value.bucket2_angle_yaw_rad = -msg->data[1];
+                    tx_command.value.bucket3_angle_yaw_rad = -msg->data[2];
                 }
             }
         );
         sub_flag_angle = this->create_subscription<std_msgs::msg::Float32>(
             "/robot/command/flag_angle", 10, [this](const std_msgs::msg::Float32::SharedPtr msg) {
-                tx_command.value.flag_angle_yaw_rad = msg->data;
+                tx_command.value.flag_angle_yaw_rad = -msg->data;
             }
         );
         sub_desk_angle = this->create_subscription<std_msgs::msg::Float32>(
             "/robot/command/desk_angle", 10, [this](const std_msgs::msg::Float32::SharedPtr msg) {
-                tx_command.value.desk_angle_yaw_rad = msg->data;
+                tx_command.value.desk_angle_yaw_rad = -msg->data;
             }
         );
         // 10ms (100Hz) 受信タイマー
