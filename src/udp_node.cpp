@@ -3,6 +3,7 @@
 #include <std_msgs/msg/float32.hpp>
 #include <std_msgs/msg/float32_multi_array.hpp>
 #include <std_msgs/msg/u_int8.hpp>
+#include <geometry_msgs/msg/twist.hpp>
 #include <thread>
 
 #include "robot_port/robot_config.hpp"
@@ -54,7 +55,30 @@ public:
         );
         pub_bucket_arm_hight_ =
             this->create_publisher<std_msgs::msg::Float32>("/robot/feedback/bucket_arm_hight", 10);
-
+        
+        // --- Subscribers 初期化 ---
+        sub_estimated_success = this->create_subscription<std_msgs::msg::Bool>(
+            "/robot/command/estimated_success", 10, [this](const std_msgs::msg::Bool::SharedPtr msg) {
+                tx_command.value.estimated_success = msg->data;
+            }
+        );
+        sub_cmd_vel_ = this->create_subscription<geometry_msgs::msg::Twist>(
+            "/robot/command/cmd_vel", 10, [this](const geometry_msgs::msg::Twist::SharedPtr msg) {
+                tx_command.value.vel_x = msg->linear.x;
+                tx_command.value.vel_y = msg->linear.y;
+                tx_command.value.vel_yaw = msg->angular.z;
+            }
+        );
+        sub_belt_launcher_ready = this->create_subscription<std_msgs::msg::Bool>(
+            "/robot/command/belt_launcher_ready", 10, [this](const std_msgs::msg::Bool::SharedPtr msg) {
+                tx_command.value.belt_launcher_ready = msg->data;
+            }
+        );
+        sub_belt_launcher_speed = this->create_subscription<std_msgs::msg::Float32>(
+            "/robot/command/belt_launcher_speed", 10, [this](const std_msgs::msg::Float32::SharedPtr msg) {
+                tx_command.value.belt_launcher_speed = msg->data;
+            }
+        );
         sub_move_bucket_angle = this->create_subscription<std_msgs::msg::Float32>(
             "/robot/command/move_bucket_angle",
             10,
@@ -230,6 +254,10 @@ private:
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr pub_loading_belt_angle_;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr pub_bucket_arm_hight_;
     // Subscriber
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_estimated_success;
+    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr sub_cmd_vel_;
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_belt_launcher_speed;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_belt_launcher_ready;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_move_bucket_angle;
     rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr sub_fixed_buckets_angle;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_flag_angle;

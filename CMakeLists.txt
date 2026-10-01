@@ -18,7 +18,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 
 add_executable(udp_node src/udp_node.cpp src/simple_udp.cpp)
-ament_target_dependencies(udp_node rclcpp std_msgs)
+ament_target_dependencies(udp_node rclcpp std_msgs geometry_msgs)
 
 target_include_directories(udp_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
