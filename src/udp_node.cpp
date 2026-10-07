@@ -71,7 +71,7 @@ public:
         );
         // 10ms (100Hz) 受信タイマー
         timer_ = this->create_wall_timer(10ms, std::bind(&UdpNode::timer_callback, this));
-	    timer_tx_ = this->create_wall_timer(100ms, std::bind(&UdpNode::tx_callback, this));
+	    timer_tx_ = this->create_wall_timer(20ms, std::bind(&UdpNode::tx_callback, this));
 
         tx_operation.value.navigation_status = robot_config::NavigationStatus::Moving; // 臨時
 
