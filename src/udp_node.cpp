@@ -20,7 +20,7 @@ public:
         init_udp_with_retry();
 
         // 送信先設定
-        udp_.setTxAddr(robot_config::ip::mainboard, robot_config::port::cmd);
+        udp_.setTxAddr(robot_config::ip::mainboard, robot_config::port::operation);
 
         // --- Publishers 初期化 ---
         pub_sequence_ =
@@ -57,64 +57,28 @@ public:
             this->create_publisher<std_msgs::msg::Float32>("/robot/feedback/bucket_arm_hight", 10);
         
         // --- Subscribers 初期化 ---
-        sub_estimated_success = this->create_subscription<std_msgs::msg::Bool>(
-            "/robot/command/estimated_success", 10, [this](const std_msgs::msg::Bool::SharedPtr msg) {
-                tx_command.value.estimated_success = msg->data;
-            }
-        );
         sub_cmd_vel_ = this->create_subscription<geometry_msgs::msg::Twist>(
-            "/robot/command/cmd_vel", 10, [this](const geometry_msgs::msg::Twist::SharedPtr msg) {
-                tx_command.value.vel_x = msg->linear.x;
-                tx_command.value.vel_y = msg->linear.y;
-                tx_command.value.vel_yaw = msg->angular.z;
-            }
-        );
-        sub_belt_launcher_ready = this->create_subscription<std_msgs::msg::Bool>(
-            "/robot/command/belt_launcher_ready", 10, [this](const std_msgs::msg::Bool::SharedPtr msg) {
-                tx_command.value.belt_launcher_ready = msg->data;
+            "/robot/operation/cmd_vel", 10, [this](const geometry_msgs::msg::Twist::SharedPtr msg) {
+                tx_operation.value.vel_x = msg->linear.x;
+                tx_operation.value.vel_y = msg->linear.y;
+                tx_operation.value.vel_yaw = msg->angular.z;
             }
         );
         sub_belt_launcher_speed = this->create_subscription<std_msgs::msg::Float32>(
-            "/robot/command/belt_launcher_speed", 10, [this](const std_msgs::msg::Float32::SharedPtr msg) {
-                tx_command.value.belt_launcher_speed = msg->data;
-            }
-        );
-        sub_move_bucket_angle = this->create_subscription<std_msgs::msg::Float32>(
-            "/robot/command/move_bucket_angle",
-            10,
-            [this](const std_msgs::msg::Float32::SharedPtr msg) {
-                tx_command.value.move_bucket_angle_yaw_rad = -msg->data;
-            }
-        );
-        sub_fixed_buckets_angle = this->create_subscription<std_msgs::msg::Float32MultiArray>(
-            "/robot/command/fixed_buckets_angle",
-            10,
-            [this](const std_msgs::msg::Float32MultiArray::SharedPtr msg) {
-                if (msg->data.size() >= 3) {
-                    tx_command.value.bucket1_angle_yaw_rad = -msg->data[0];
-                    tx_command.value.bucket2_angle_yaw_rad = -msg->data[1];
-                    tx_command.value.bucket3_angle_yaw_rad = -msg->data[2];
-                }
-            }
-        );
-        sub_flag_angle = this->create_subscription<std_msgs::msg::Float32>(
-            "/robot/command/flag_angle", 10, [this](const std_msgs::msg::Float32::SharedPtr msg) {
-                tx_command.value.flag_angle_yaw_rad = -msg->data;
-            }
-        );
-        sub_desk_angle = this->create_subscription<std_msgs::msg::Float32>(
-            "/robot/command/desk_angle", 10, [this](const std_msgs::msg::Float32::SharedPtr msg) {
-                tx_command.value.desk_angle_yaw_rad = -msg->data;
+            "/robot/operation/belt_launcher_speed", 10, [this](const std_msgs::msg::Float32::SharedPtr msg) {
+                tx_operation.value.belt_launcher_speed = msg->data;
             }
         );
         // 10ms (100Hz) 受信タイマー
         timer_ = this->create_wall_timer(10ms, std::bind(&UdpNode::timer_callback, this));
-	timer_tx_ = this->create_wall_timer(100ms, std::bind(&UdpNode::tx_callback, this));
+	    timer_tx_ = this->create_wall_timer(100ms, std::bind(&UdpNode::tx_callback, this));
+
+        tx_operation.value.navigation_status = robot_config::NavigationStatus::Moving; // 臨時
 
         RCLCPP_INFO(
             this->get_logger(),
             "UDP Receiver Node started (Listening on port %d, feedback size: %zu bytes)",
-            robot_config::port::cmd,
+            robot_config::port::operation,
             sizeof(robot_config::feedback_t)
         );
     }
@@ -136,7 +100,7 @@ private:
                 continue;
             }
 
-            if (!udp_.bindSocket(robot_config::ip::pc_robot, robot_config::port::cmd)) {
+            if (!udp_.bindSocket(robot_config::ip::pc_robot, robot_config::port::operation)) {
                 RCLCPP_WARN(
                     this->get_logger(),
                     "Waiting for network interface (%d.%d.%d.%d:%d)... Retrying in 1 second.",
@@ -144,7 +108,7 @@ private:
                     robot_config::ip::pc_robot[1],
                     robot_config::ip::pc_robot[2],
                     robot_config::ip::pc_robot[3],
-                    robot_config::port::cmd
+                    robot_config::port::operation
                 );
                 udp_.closeSocket();  // バインド失敗時はソケットを閉じて再作成
                 std::this_thread::sleep_for(1s);
@@ -218,15 +182,6 @@ private:
                 auto arm_h_msg = std_msgs::msg::Float32();
                 arm_h_msg.data = fb.bucket_arm_height;
                 pub_bucket_arm_hight_->publish(arm_h_msg);
-
-                RCLCPP_INFO(
-                    this->get_logger(),
-                    "Feedback - Seq: %u, V_Drive: %.2fV, I_Drive: %.2fA, Bucket: %.2fm",
-                    fb.sequence,
-                    fb.drive_battery_voltages,
-                    fb.drive_current,
-                    fb.bucket_arm_height
-                );
             }
         }
     }
@@ -234,12 +189,12 @@ private:
     void tx_callback()
     {
 	// 送信データを送信
-        tx_command.value.header = robot_config::header::operation;
-        udp_.sendPacket(tx_command.binary, sizeof(tx_command));
+        tx_operation.value.header = robot_config::header::operation;
+        udp_.sendPacket(tx_operation.binary, sizeof(tx_operation));
     }
 
     SimpleUDP udp_;
-    robot_config::command_u tx_command;
+    robot_config::operation_u tx_operation;
 
     // Publishers
     rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr pub_sequence_;
