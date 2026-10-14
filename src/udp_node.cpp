@@ -4,12 +4,14 @@
 
 #include <chrono>
 #include <memory>
+#include <limits>
 #include <stdexcept>
 
 #include "robot_port/msg/bridge_health.hpp"
 #include "robot_port/msg/robot_command.hpp"
 #include "robot_port/msg/robot_feedback.hpp"
 #include "robot_port/msg/robot_operation.hpp"
+#include "robot_port/operation_watchdog.hpp"
 #include "robot_port/robot_config.hpp"
 #include "robot_port/simple_udp.hpp"
 
@@ -53,6 +55,11 @@ public:
     operation_subscription_ = create_subscription<msg::RobotOperation>(
       "/robot/operation", rclcpp::QoS(1).durability_volatile(),
       [this](msg::RobotOperation::ConstSharedPtr message) { accept_operation(*message); });
+    operation_timeout_ms_ = positive_parameter("operation_timeout_ms", 100);
+    if (operation_timeout_ms_ > std::numeric_limits<int64_t>::max() / 1000000) {
+      throw std::invalid_argument("operation_timeout_ms exceeds nanosecond range");
+    }
+    watchdog_ = std::make_unique<OperationWatchdog>(std::chrono::milliseconds(operation_timeout_ms_));
     command_timeout_ms_ = positive_parameter("command_timeout_ms", 150);
     feedback_timeout_ms_ = positive_parameter("feedback_timeout_ms", 150);
     receive_timer_ = create_wall_timer(5ms, [this]() { receive_packets(); });
@@ -93,11 +100,14 @@ private:
     operation.bucket_arm_hold = message.bucket_arm_hold;
     operation.angles_deg = message.angles_deg;
 
-    if (!wire::valid_operation(operation)) {
+    if (message.stamp.nanosec >= 1000000000U || message.stamp.sec < 0 ||
+      !watchdog_->accept(operation,
+        {message.producer_session, message.generation, message.update_sequence,
+          rclcpp::Time(message.stamp).nanoseconds()}, Clock::now(), now().nanoseconds()))
+    {
       ++rejected_operations_;
       return;
     }
-    operation_ = operation;
     operation_received_ = Clock::now();
     have_operation_ = true;
   }
@@ -176,7 +186,8 @@ private:
       return;
     }
     std::array<uint8_t, wire::OPERATION_SIZE> bytes{};
-    if (!wire::encode_operation(operation_, bytes)) {
+    const auto operation = watchdog_->current(Clock::now(), now().nanoseconds());
+    if (!wire::encode_operation(operation, bytes)) {
       ++send_errors_;
       last_send_success_ = false;
       return;
@@ -206,7 +217,8 @@ private:
     health.last_successful_send_age_ms = age_ms(have_successful_send_, last_successful_send_);
     health.command_fresh = have_command_ && health.command_age_ms < command_timeout_ms_;
     health.feedback_fresh = have_feedback_ && health.feedback_age_ms < feedback_timeout_ms_;
-    health.operation_fresh = have_operation_;
+    health.operation_fresh = watchdog_->fresh(Clock::now(), now().nanoseconds());
+    health.watchdog_active = !health.operation_fresh;
     health.transmission_enabled = transmission_enabled_;
     health.last_send_success = last_send_success_;
     health.rejected_command_packets = rejected_command_packets_;
@@ -222,7 +234,7 @@ private:
   std::unique_ptr<UDPChannel> operation_channel_;
   Endpoint command_peer_;
   Endpoint feedback_peer_;
-  wire::Operation operation_{};
+  std::unique_ptr<OperationWatchdog> watchdog_;
   bool transmission_enabled_{};
   bool last_send_success_{};
   bool have_command_{};
@@ -233,6 +245,7 @@ private:
   TimePoint feedback_received_{};
   TimePoint operation_received_{};
   TimePoint last_successful_send_{};
+  int64_t operation_timeout_ms_{};
   int64_t command_timeout_ms_{};
   int64_t feedback_timeout_ms_{};
   uint64_t rejected_command_packets_{};

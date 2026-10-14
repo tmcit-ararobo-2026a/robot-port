@@ -10,3 +10,4 @@ udp_node:
     test_mode: false
     command_timeout_ms: 150
     feedback_timeout_ms: 150
+    operation_timeout_ms: 100

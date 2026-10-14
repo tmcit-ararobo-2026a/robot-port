@@ -27,6 +27,18 @@ ROS 2 HumbleとSTM32間の通信パッケージ。新UDP対応は `feat/10-stm32
 `physical_contract_confirmed: true` を必要とする。これは確認の記録用であり物理停止の証拠ではない。
 fixtureは `test_mode: true` に加えlocal/peerともIPv4 loopbackが必須。
 
+## Operation watchdog（T04）
+
+起動時・期限切れは自動速度ゼロのFailを送信。単調時計で生成時点から100msを監視する。
+生成stampの過去・未来、重複stamp・更新番号、世代逆行、不正値を拒否し、古い再配信で期限を延長しない。
+ROS時計の停止でも単調期限は失効し、巻戻り・大きい進みでも許可を失効する。
+producer_sessionは再起動で変更し、最初に全ゼロStandby/Failを送る。
+期限切れ後はneutral handshakeの後に新しい世代が必要で、同じ世代の走行は再開しない。
+別sessionによるactive指令の横取りや引退済みsessionの再受信を拒否する。
+
+`BridgeHealth`はcommand/feedback/Operationそれぞれの鮮度、拒否数、受信・送信エラー、
+最後のUDP送信成功を区別する。Fail送信は基板受理・手動運動・物理停止を保証しない。
+
 ## 従来の環境資料
 
 # base-ros2

@@ -33,6 +33,9 @@ target_include_directories(wire_codec PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
+add_library(operation_watchdog src/operation_watchdog.cpp)
+target_link_libraries(operation_watchdog PUBLIC wire_codec)
+
 if(BUILD_RUNTIME_NODES)
 add_library(udp_channel src/simple_udp.cpp)
 target_include_directories(udp_channel PUBLIC
@@ -40,7 +43,7 @@ target_include_directories(udp_channel PUBLIC
   $<INSTALL_INTERFACE:include>)
 
 add_executable(udp_node src/udp_node.cpp)
-target_link_libraries(udp_node wire_codec udp_channel)
+target_link_libraries(udp_node wire_codec udp_channel operation_watchdog)
 rosidl_get_typesupport_target(cpp_typesupport ${PROJECT_NAME} "rosidl_typesupport_cpp")
 target_link_libraries(udp_node "${cpp_typesupport}")
 ament_target_dependencies(udp_node rclcpp std_msgs geometry_msgs)
@@ -64,6 +67,8 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(wire_codec_test test/wire_codec_test.cpp)
   target_link_libraries(wire_codec_test wire_codec)
+  ament_add_gtest(operation_watchdog_test test/operation_watchdog_test.cpp)
+  target_link_libraries(operation_watchdog_test operation_watchdog)
   if(BUILD_RUNTIME_NODES)
     ament_add_gtest(udp_channel_test test/udp_channel_test.cpp)
     target_link_libraries(udp_channel_test udp_channel)
@@ -80,7 +85,7 @@ if(BUILD_TESTING)
 endif()
 
 install(DIRECTORY include/ DESTINATION include)
-install(TARGETS wire_codec EXPORT wire_codec_targets
+install(TARGETS wire_codec operation_watchdog EXPORT wire_codec_targets
   ARCHIVE DESTINATION lib LIBRARY DESTINATION lib)
 ament_export_targets(wire_codec_targets HAS_LIBRARY_TARGET)
 ament_export_dependencies(rosidl_default_runtime)
