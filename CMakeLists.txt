@@ -16,7 +16,12 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(builtin_interfaces REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
+option(BUILD_RUNTIME_NODES "Build UDP runtime nodes" ON)
+
+if(BUILD_RUNTIME_NODES)
 add_executable(udp_node src/udp_node.cpp src/simple_udp.cpp)
 ament_target_dependencies(udp_node rclcpp std_msgs geometry_msgs)
 
@@ -28,12 +33,15 @@ install(TARGETS
   udp_node
   DESTINATION lib/${PROJECT_NAME})
 
+endif()
+
 install(DIRECTORY launch config rviz
   DESTINATION share/${PROJECT_NAME}
 )
 
 
 if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
   # comment the line when a copyright and license is added to all source files
@@ -45,4 +53,5 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
+ament_export_dependencies(rosidl_default_runtime)
 ament_package()

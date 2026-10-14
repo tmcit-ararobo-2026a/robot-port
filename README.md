@@ -1,3 +1,12 @@
+# robot_port
+
+ROS 2 HumbleとSTM32間の通信パッケージ。新UDP対応は `feat/10-stm32-new-udp` で段階的に実装中。
+通信契約・未確定仕様・実機の保留条件は [new_mainboard_contract.md](docs/new_mainboard_contract.md) を参照。
+
+型生成と実行ノードのビルドは `-DBUILD_RUNTIME_NODES=OFF` で分離可能。
+
+## 従来の環境資料
+
 # base-ros2
 
 ROS2の開発環境がまとめられたdockerfileです。
