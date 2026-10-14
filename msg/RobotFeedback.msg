@@ -1,0 +1,13 @@
+# Received measurement; not an operation acknowledgement or physical stop proof.
+builtin_interfaces/Time received_stamp
+uint8 sequence
+bool emergency_stop_enabled
+bool over_current
+float32 drive_battery_voltage_v
+float32 drive_current_a
+float32 belt_launcher_target_velocity_m_s
+float32 last_belt_launcher_release_velocity_m_s
+float32[3] wheel_angular_velocity_rad_s
+float32 belt_launcher_velocity_m_s
+float32 loading_belt_angle_rad
+float32 bucket_arm_height_m

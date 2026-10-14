@@ -1,0 +1,13 @@
+udp_node:
+  ros__parameters:
+    local_address: "192.168.3.1"
+    peer_address: "192.168.3.2"
+    command_port: 26574
+    operation_port: 39244
+    # Enable only after external mechanism/board contracts are accepted.
+    enable_transmission: false
+    physical_contract_confirmed: false
+    test_mode: false
+    command_timeout_ms: 150
+    feedback_timeout_ms: 150
+    operation_timeout_ms: 100

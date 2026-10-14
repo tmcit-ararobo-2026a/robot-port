@@ -1,9 +1,9 @@
 name: CI
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "feat/**", "fix/**" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "feat/**", "fix/**" ]
 
 permissions:
   contents: read
@@ -51,8 +51,20 @@ jobs:
           rosdep update --rosdistro humble
           rosdep install --from-paths . --skip-keys gn10_can -y --rosdistro humble
 
-          colcon build \
+          colcon --log-base "${{ runner.temp }}/robot-port-log" build \
+            --build-base "${{ runner.temp }}/robot-port-build" \
+            --install-base "${{ runner.temp }}/robot-port-install" \
             --cmake-args \
               -DCMAKE_C_COMPILER_LAUNCHER=ccache \
               -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
               -DBUILD_FOR_ROS2=ON
+      - name: Test
+        run: |
+          set -e
+          source /opt/ros/humble/setup.bash
+          source "${{ runner.temp }}/robot-port-install/setup.bash"
+          colcon --log-base "${{ runner.temp }}/robot-port-test-log" test \
+            --build-base "${{ runner.temp }}/robot-port-build" \
+            --install-base "${{ runner.temp }}/robot-port-install" \
+            --event-handlers console_direct+
+          colcon test-result --test-result-base "${{ runner.temp }}/robot-port-build" --verbose

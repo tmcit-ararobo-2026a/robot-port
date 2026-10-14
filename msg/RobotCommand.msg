@@ -1,0 +1,20 @@
+uint8 START_ZONE=0
+uint8 FIXED_BUCKET1=1
+uint8 FIXED_BUCKET2=2
+uint8 FIXED_BUCKET3=3
+uint8 DESK1=4
+uint8 DESK2=5
+uint8 FLAG=6
+uint8 MOVING_BUCKET=7
+uint8 SLEEP=0
+uint8 STANDBY=1
+uint8 MOVE=2
+# Reception stamp; sequence is an opaque wire value, not an approved request ID.
+builtin_interfaces/Time received_stamp
+uint8 sequence
+bool shutdown
+bool localization
+bool logging
+uint8 target_id
+uint8 navigation_command
+bool cloth_collect
