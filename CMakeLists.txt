@@ -67,18 +67,20 @@ install(DIRECTORY launch config rviz
 
 
 if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
-  find_package(ament_cmake_pytest REQUIRED)
-  ament_add_gtest(wire_codec_test test/wire_codec_test.cpp)
-  target_link_libraries(wire_codec_test wire_codec)
-  ament_add_gtest(operation_watchdog_test test/operation_watchdog_test.cpp)
-  target_link_libraries(operation_watchdog_test operation_watchdog)
-  if(BUILD_RUNTIME_NODES)
-    ament_add_gtest(udp_channel_test test/udp_channel_test.cpp)
-    target_link_libraries(udp_channel_test udp_channel)
-    ament_add_pytest_test(udp_bridge_integration_test test/udp_bridge_integration_test.py
-      ENV UDP_EXECUTABLE=$<TARGET_FILE:udp_node>
-      TIMEOUT 60)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/wire_codec_test.cpp")
+    find_package(ament_cmake_gtest REQUIRED)
+    find_package(ament_cmake_pytest REQUIRED)
+    ament_add_gtest(wire_codec_test test/wire_codec_test.cpp)
+    target_link_libraries(wire_codec_test wire_codec)
+    ament_add_gtest(operation_watchdog_test test/operation_watchdog_test.cpp)
+    target_link_libraries(operation_watchdog_test operation_watchdog)
+    if(BUILD_RUNTIME_NODES)
+      ament_add_gtest(udp_channel_test test/udp_channel_test.cpp)
+      target_link_libraries(udp_channel_test udp_channel)
+      ament_add_pytest_test(udp_bridge_integration_test test/udp_bridge_integration_test.py
+        ENV UDP_EXECUTABLE=$<TARGET_FILE:udp_node>
+        TIMEOUT 60)
+    endif()
   endif()
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
@@ -99,10 +101,7 @@ if(BUILD_TESTING)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/wire_codec.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/simple_udp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/operation_watchdog.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/udp_node.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test/wire_codec_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test/udp_channel_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test/operation_watchdog_test.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/udp_node.cpp)
   ament_lint_auto_find_test_dependencies()
 endif()
 

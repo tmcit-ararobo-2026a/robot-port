@@ -22,8 +22,6 @@ ROS 2とSTM32の間で、ロボットの操作要求・動作指令・フィー�
 | :--- | :--- |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 開発フロー・コミット規約 |
 | [コーディング規約](docs/coding-rules.md) | コーディング規約の詳細 |
-| [通信仕様](docs/new_mainboard_contract.md) | パケット構成、接続条件、実機で確認が必要な項目 |
-| [通信試験](docs/verification_new_udp.md) | 単体試験・UDP結合試験の結果 |
 
 ## 3. コントリビューション
 
@@ -50,7 +48,7 @@ ros2 launch robot_port robot_port.launch.py config:=/absolute/path/udp.yaml
 
 既定では送信が無効です。実機へ送信するには`enable_transmission: true`と`physical_contract_confirmed: true`が必要です。後者は接続条件の確認を記録する設定であり、機構の停止や校正を検証する機能ではありません。試験用の`test_mode: true`では、送信元・宛先ともIPv4 loopbackに限ります。
 
-型のみをビルドする場合は`--cmake-args -DBUILD_RUNTIME_NODES=OFF`を指定します。通信試験は次のコマンドで実行します。
+型のみをビルドする場合は`--cmake-args -DBUILD_RUNTIME_NODES=OFF`を指定します。ローカルに`test/`ファイルを配置した場合、通信試験を次のコマンドで実行できます。
 
 ```bash
 colcon test --packages-select robot_port
