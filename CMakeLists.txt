@@ -21,6 +21,18 @@ find_package(rosidl_default_generators REQUIRED)
 
 option(BUILD_RUNTIME_NODES "Build UDP runtime nodes" ON)
 
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/RobotCommand.msg"
+  "msg/RobotOperation.msg"
+  "msg/RobotFeedback.msg"
+  "msg/BridgeHealth.msg"
+  DEPENDENCIES builtin_interfaces)
+
+add_library(wire_codec src/wire_codec.cpp)
+target_include_directories(wire_codec PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
 if(BUILD_RUNTIME_NODES)
 add_executable(udp_node src/udp_node.cpp src/simple_udp.cpp)
 ament_target_dependencies(udp_node rclcpp std_msgs geometry_msgs)
@@ -42,6 +54,8 @@ install(DIRECTORY launch config rviz
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(wire_codec_test test/wire_codec_test.cpp)
+  target_link_libraries(wire_codec_test wire_codec)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
   # comment the line when a copyright and license is added to all source files
@@ -53,5 +67,9 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
+install(DIRECTORY include/ DESTINATION include)
+install(TARGETS wire_codec EXPORT wire_codec_targets
+  ARCHIVE DESTINATION lib LIBRARY DESTINATION lib)
+ament_export_targets(wire_codec_targets HAS_LIBRARY_TARGET)
 ament_export_dependencies(rosidl_default_runtime)
 ament_package()

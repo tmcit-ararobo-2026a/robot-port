@@ -5,6 +5,14 @@ ROS 2 HumbleとSTM32間の通信パッケージ。新UDP対応は `feat/10-stm32
 
 型生成と実行ノードのビルドは `-DBUILD_RUNTIME_NODES=OFF` で分離可能。
 
+## 新通信型・codec（T02a）
+
+`RobotCommand`、`RobotOperation`、`RobotFeedback`、`BridgeHealth`を所有する。
+`wire_codec`は完全長・header・enum・bool・有限float32・[-20,20]のint8角度を検査し、
+明示的little endianの32byteを生成する。予約byteは0。ROSメタデータはwireに含まれない。
+角度配列はmoving, bucket1, bucket2, bucket3, flag, deskの順。
+無効値をクリップせず、スナップショット全体を拒否する。物理範囲・角度無効値は未確定。
+
 ## 従来の環境資料
 
 # base-ros2
