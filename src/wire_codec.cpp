@@ -44,8 +44,7 @@ bool decode_command(std::span<const uint8_t> bytes, Command& output)
         return false;
     }
     output = {
-        bytes[1], bytes[2] == 1, bytes[3] == 1, bytes[4] == 1, bytes[5], bytes[6], bytes[7] == 1
-    };
+        bytes[1], bytes[2] == 1, bytes[3] == 1, bytes[4] == 1, bytes[5], bytes[6], bytes[7] == 1};
     return true;
 }
 

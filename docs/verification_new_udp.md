@@ -30,6 +30,14 @@ colcon test-result --test-result-base /tmp/stm32-ros2/build/robot_port/test_resu
 - 次の再試行: 失敗／終了コード8。QoS深さ1の入力3件連続送信で上書きされ、拒否数の期待値に達しなかった。1件ずつ拒否を観測する試験へ修正後、結合試験成功／終了コード0。
 - 初回colcon test-resultは古いuncrustify結果残留で終了コード1。上記へ保存後、現行結果は終了コード0。
 
+## CI初回失敗と修正
+
+PR #11の初回GitHub CI: 失敗。実機能の単体・結合試験は成功し、clang-format14とローカル18の2箇所の版差、ソース直下のbuild/install生成物をflake8・CMake lintが走査したため失敗した。
+ビルド・install・logをrunner.temp配下へ移動し、ローカル整形もUbuntu22.04標準のclang-format14へ合わせた。
+修正後のHumbleビルドと全CTest10件: 成功／終了コード0。CIの再実行結果は別途確認する。
+修正時のコマンドは上記と同様、整形ツールの指定は `/tmp/stm32-tools14/clang_format/data/bin/clang-format`。
+ログ: `/tmp/stm32-ros2/robot-ci-repair-build.log`、`robot-ci-repair-tests.log`。初回CI失敗ログも保持。
+
 ## 未実施・残条件
 
 実機、HIL、基板受理、物理停止・負荷試験: 未実施。U1〜U15の外部条件・校正は未確定。

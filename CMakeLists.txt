@@ -87,7 +87,7 @@ if(BUILD_TESTING)
   set(ament_cmake_cpplint_FOUND TRUE)
   # The repository uses Google-based .clang-format, not ROS uncrustify defaults.
   set(ament_cmake_uncrustify_FOUND TRUE)
-  find_program(CLANG_FORMAT_BIN NAMES clang-format-18 clang-format REQUIRED)
+  find_program(CLANG_FORMAT_BIN NAMES clang-format-14 clang-format REQUIRED)
   add_test(NAME clang_format COMMAND ${CLANG_FORMAT_BIN} --dry-run --Werror
     ${CMAKE_CURRENT_SOURCE_DIR}/include/robot_port/wire_codec.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/robot_port/robot_config.hpp

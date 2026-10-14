@@ -108,8 +108,7 @@ DatagramResult UDPChannel::receive(std::span<uint8_t> buffer) const
         static_cast<std::size_t>(received),
         endpoint_of(source),
         (message.msg_flags & MSG_TRUNC) != 0,
-        0
-    };
+        0};
 }
 
 Endpoint UDPChannel::local_endpoint() const
