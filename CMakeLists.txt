@@ -65,6 +65,7 @@ install(DIRECTORY launch config rviz
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
+  find_package(ament_cmake_pytest REQUIRED)
   ament_add_gtest(wire_codec_test test/wire_codec_test.cpp)
   target_link_libraries(wire_codec_test wire_codec)
   ament_add_gtest(operation_watchdog_test test/operation_watchdog_test.cpp)
@@ -72,6 +73,9 @@ if(BUILD_TESTING)
   if(BUILD_RUNTIME_NODES)
     ament_add_gtest(udp_channel_test test/udp_channel_test.cpp)
     target_link_libraries(udp_channel_test udp_channel)
+    ament_add_pytest_test(udp_bridge_integration_test test/udp_bridge_integration_test.py
+      ENV UDP_EXECUTABLE=$<TARGET_FILE:udp_node>
+      TIMEOUT 60)
   endif()
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
@@ -81,6 +85,21 @@ if(BUILD_TESTING)
   # comment the line when this package is in a git repo and when
   # a copyright and license is added to all source files
   set(ament_cmake_cpplint_FOUND TRUE)
+  # The repository uses Google-based .clang-format, not ROS uncrustify defaults.
+  set(ament_cmake_uncrustify_FOUND TRUE)
+  find_program(CLANG_FORMAT_BIN NAMES clang-format-18 clang-format REQUIRED)
+  add_test(NAME clang_format COMMAND ${CLANG_FORMAT_BIN} --dry-run --Werror
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/robot_port/wire_codec.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/robot_port/robot_config.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/robot_port/simple_udp.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/robot_port/operation_watchdog.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/wire_codec.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/simple_udp.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/operation_watchdog.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/udp_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/wire_codec_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/udp_channel_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/operation_watchdog_test.cpp)
   ament_lint_auto_find_test_dependencies()
 endif()
 

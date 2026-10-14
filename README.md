@@ -39,6 +39,15 @@ producer_sessionは再起動で変更し、最初に全ゼロStandby/Failを送�
 `BridgeHealth`はcommand/feedback/Operationそれぞれの鮮度、拒否数、受信・送信エラー、
 最後のUDP送信成功を区別する。Fail送信は基板受理・手動運動・物理停止を保証しない。
 
+## 通信結合・故障注入試験（T18a）
+
+`colcon test --packages-select robot_port` と `colcon test-result --verbose`。
+loopback専用pytestで実DDS・実UDPを使用し、packet長・送信元・空packet・旧形式・NaN、
+片方向受信断、publisher停止、期限切れ後の旧世代、重複再配信、試験宛先制限、bind競合を検証する。
+C++単体試験で生成時刻・時計変化・session交代と実際のUDP送信失敗も確認する。
+整形検査は既存 `.clang-format` を使用し、今回の通信コードを対象とする。
+旧CANファイルの整形を本機能に混在させない。CIもビルド後にテストを実行する。
+
 ## 従来の環境資料
 
 # base-ros2

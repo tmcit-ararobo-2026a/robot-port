@@ -1,0 +1,37 @@
+# 新UDP通信基盤の検証（T02a〜T04・T18a）
+
+実施日: 2026-10-14（Asia/Tokyo）。作業ディレクトリ: `/home/lambda/ros2_ws/src`。
+基準: robot-port `ce821b9ca75e7e6aebcde92ccec710e3f5e05343` → `feat/10-stm32-new-udp`。
+検証対象: T00文書化、T01依存、T02a通信型・codec、T03送受信、T04watchdog、T18a試験・整形・CI。
+STM32参照: `e66ca03305666d2c53ba97a3e5c855201e2f7e53`。変更せず定義とバイト一致を照合。
+
+## コマンドと結果
+
+```bash
+source /opt/ros/humble/setup.bash
+colcon --log-base /tmp/stm32-ros2/log-t18a-repair build --base-paths robot-port   --build-base /tmp/stm32-ros2/build --install-base /tmp/stm32-ros2/install   --packages-select robot_port   --cmake-args -DCLANG_FORMAT_BIN=/tmp/stm32-tools/clang_format/data/bin/clang-format
+source /tmp/stm32-ros2/install/setup.bash
+colcon --log-base /tmp/stm32-ros2/log-t18a-final test   --build-base /tmp/stm32-ros2/build --install-base /tmp/stm32-ros2/install   --packages-select robot_port
+colcon test-result --test-result-base /tmp/stm32-ros2/build/robot_port/test_results --verbose
+```
+
+- ビルド: 成功／終了コード0。ROS 2 Humble、GCC11、Python3.10、C++20。`ros2 interface show robot_port/msg/RobotOperation` も成功。
+- 基板構造体との8/32/44byte・offset・operation golden packetのmemcmp: 成功／終了コード0。`/tmp/stm32_wire_layout_check.cpp` をGCC11で基板参照includeとcodecにリンクし実行。
+- C++ codec5件・watchdog5件・UDP4件、pytest結合1件、整形・Python・CMake・XML検査: 成功。colcon結果35件、エラー0・失敗0・skip15。
+- skip15件はament_cppcheckの既知cppcheck2.7性能問題による自動skip。静的解析の成功と扱わない。
+- 通信先は127.0.0.0/8限定。ROS_LOCALHOST_ONLY=1・試験専用ROS_DOMAIN_ID。UDP元長・送信元・片方向断・Operation入力断・重複・旧世代非再開を検証。ソケット/DDSはsandbox外で実施。
+
+## 失敗と修正
+
+- sandbox内UDP試験: 失敗／ctest終了コード8。socket作成のEPERM。loopback限定でsandbox外へ切替後に成功。
+- 初回全試験: 失敗／終了コード8。pytest環境変数APPEND_ENVの先頭コロン、manifestのmember_of_group配置、ROS標準uncrustifyとの規約不一致。
+- ENVへの変更、manifest順修正、既存.clang-formatに基づく新通信コードの整形検査へ変更。廃止したuncrustifyの失敗結果は `/tmp/stm32-ros2/obsolete-test-results/uncrustify-initial-failure.xunit.xml` に保存し、現行結果と分離。
+- 結合試験再試行: 失敗／終了コード8。明示contextに対して暗黙global executorを利用。専用executorへ修正。
+- 次の再試行: 失敗／終了コード8。QoS深さ1の入力3件連続送信で上書きされ、拒否数の期待値に達しなかった。1件ずつ拒否を観測する試験へ修正後、結合試験成功／終了コード0。
+- 初回colcon test-resultは古いuncrustify結果残留で終了コード1。上記へ保存後、現行結果は終了コード0。
+
+## 未実施・残条件
+
+実機、HIL、基板受理、物理停止・負荷試験: 未実施。U1〜U15の外部条件・校正は未確定。
+送信成功は基板受理ACK・全機構停止ではない。既定実機送信は無効。
+未確定契約は [new_mainboard_contract.md](new_mainboard_contract.md) を参照。
