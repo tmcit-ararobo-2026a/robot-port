@@ -1,4 +1,9 @@
 builtin_interfaces/Time stamp
+# Changes on bridge restart; advancing reports preserve each input age.
+uint64 bridge_session
+uint64 update_sequence
+bool test_mode
+bool loopback_only
 bool command_fresh
 bool feedback_fresh
 bool operation_fresh

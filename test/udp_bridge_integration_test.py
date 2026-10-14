@@ -171,6 +171,9 @@ def test_udp_bridge_fault_injection():
         assert b'bind' in competing.stdout + competing.stderr
 
         # Health reports actual UDP sends, not board acknowledgement.
+        assert healths[-1].bridge_session != 0
+        assert healths[-1].test_mode and healths[-1].loopback_only
+        assert healths[-1].update_sequence > healths[0].update_sequence
         assert healths[-1].last_send_success and healths[-1].send_errors == 0
         assert healths[-1].last_successful_send_age_ms >= 0
     finally:

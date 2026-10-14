@@ -3,6 +3,7 @@
 #include <chrono>
 #include <limits>
 #include <memory>
+#include <random>
 #include <rclcpp/rclcpp.hpp>
 #include <stdexcept>
 
@@ -34,7 +35,14 @@ public:
             throw std::invalid_argument("command_port and operation_port must differ");
         }
         transmission_enabled_ = declare_parameter<bool>("enable_transmission", false);
-        const bool test_mode  = declare_parameter<bool>("test_mode", false);
+        test_mode_            = declare_parameter<bool>("test_mode", false);
+        const bool test_mode  = test_mode_;
+        loopback_only_ = local_address.rfind("127.", 0) == 0 && peer_address.rfind("127.", 0) == 0;
+        std::random_device random;
+        bridge_session_ = (static_cast<uint64_t>(random()) << 32) | random();
+        if (bridge_session_ == 0) {
+            bridge_session_ = 1;
+        }
         const bool contract_confirmed =
             declare_parameter<bool>("physical_contract_confirmed", false);
         // Fixtures can never target a physical interface, even if transmission is off.
@@ -234,6 +242,10 @@ private:
     {
         msg::BridgeHealth health;
         health.stamp                       = now();
+        health.bridge_session              = bridge_session_;
+        health.update_sequence             = ++health_sequence_;
+        health.test_mode                   = test_mode_;
+        health.loopback_only               = loopback_only_;
         health.command_age_ms              = age_ms(have_command_, command_received_);
         health.feedback_age_ms             = age_ms(have_feedback_, feedback_received_);
         health.operation_age_ms            = age_ms(have_operation_, operation_received_);
@@ -279,6 +291,8 @@ private:
     rclcpp::Publisher<msg::RobotCommand>::SharedPtr command_publisher_;
     rclcpp::Publisher<msg::RobotFeedback>::SharedPtr feedback_publisher_;
     rclcpp::Publisher<msg::BridgeHealth>::SharedPtr health_publisher_;
+    uint64_t bridge_session_{}, health_sequence_{};
+    bool test_mode_{}, loopback_only_{};
     rclcpp::Subscription<msg::RobotOperation>::SharedPtr operation_subscription_;
     rclcpp::TimerBase::SharedPtr receive_timer_;
     rclcpp::TimerBase::SharedPtr send_timer_;
