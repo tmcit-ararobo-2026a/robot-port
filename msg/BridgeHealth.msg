@@ -22,3 +22,8 @@ uint64 receive_errors
 uint64 send_errors
 # UDP send success does not imply board acceptance or any mechanism stopping.
 string reason
+
+# Metadata of the last successful UDP send, not a board acknowledgement.
+uint64 last_sent_producer_session
+uint64 last_sent_generation
+uint8 last_sent_navigation_status

@@ -136,8 +136,10 @@ private:
             ++rejected_operations_;
             return;
         }
-        operation_received_ = Clock::now();
-        have_operation_     = true;
+        accepted_session_    = message.producer_session;
+        accepted_generation_ = message.generation;
+        operation_received_  = Clock::now();
+        have_operation_      = true;
     }
     /** @brief Drain bounded batches so packet floods cannot starve transmission. */
     void receive_packets()
@@ -223,6 +225,9 @@ private:
         }
         last_send_success_ = operation_channel_->send(bytes);
         if (last_send_success_) {
+            last_sent_session_    = accepted_session_;
+            last_sent_generation_ = accepted_generation_;
+            last_sent_status_     = operation.navigation_status;
             last_successful_send_ = Clock::now();
             have_successful_send_ = true;
         } else {
@@ -242,6 +247,9 @@ private:
     {
         msg::BridgeHealth health;
         health.stamp                       = now();
+        health.last_sent_producer_session  = last_sent_session_;
+        health.last_sent_generation        = last_sent_generation_;
+        health.last_sent_navigation_status = last_sent_status_;
         health.bridge_session              = bridge_session_;
         health.update_sequence             = ++health_sequence_;
         health.test_mode                   = test_mode_;
@@ -292,6 +300,9 @@ private:
     rclcpp::Publisher<msg::RobotFeedback>::SharedPtr feedback_publisher_;
     rclcpp::Publisher<msg::BridgeHealth>::SharedPtr health_publisher_;
     uint64_t bridge_session_{}, health_sequence_{};
+    uint64_t accepted_session_{}, accepted_generation_{}, last_sent_session_{},
+        last_sent_generation_{};
+    uint8_t last_sent_status_{};
     bool test_mode_{}, loopback_only_{};
     rclcpp::Subscription<msg::RobotOperation>::SharedPtr operation_subscription_;
     rclcpp::TimerBase::SharedPtr receive_timer_;

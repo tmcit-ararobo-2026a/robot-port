@@ -51,3 +51,12 @@ udp_nodeの共有依存libudp_channel.soがinstallされていなかった。udp
 上記Humble colconビルド（robot_portとauto_mode_manager）、インストールsetupをsourceしたmanagerのCTest2件は成功／終了コード0。
 ログ: `/tmp/stm32-ros2/runtime-fix-build.log`、`manager-t17a-launch-retry.log`（失敗）、`manager-t17a-final-tests.log`（成功）。
 従来のbuildディレクトリ上のcodec/UDP試験に加えて、インストール後のros2 launch送受信を確認した。
+
+## manager契約v1のbridgeメタデータと送信記録
+
+2026-10-14 Asia/Tokyo、feat/12-bridge-contract-v1。3364e6fからの型・通信ノード・試験差分。
+bridge_session/update_sequence/test_mode/loopback_onlyと、最後に成功したUDP送信のproducer/session/generation/statusを追加。wireは8/32/44 byteを維持。
+Humble、`/home/lambda/ros2_ws/src`でcolcon build --packages-select robot_port --build-base /tmp/manager-v1/build --install-base /tmp/manager-v1/install。
+ビルド成功／終了コード0。install setup後ctest --test-dir /tmp/manager-v1/build/robot_port --output-on-failure、10件成功／終了コード0。
+実DDSでメタデータ・進行・ノード再起動のsession変化と実Fail送信statusを確認。board ACK／物理停止は未実施・unknown。
+ログ `/tmp/manager-v1/runtime-build.log`、bridge-final-tests.log。clang-format14。

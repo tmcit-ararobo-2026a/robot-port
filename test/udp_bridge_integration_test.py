@@ -176,6 +176,14 @@ def test_udp_bridge_fault_injection():
         assert healths[-1].update_sequence > healths[0].update_sequence
         assert healths[-1].last_send_success and healths[-1].send_errors == 0
         assert healths[-1].last_successful_send_age_ms >= 0
+        assert healths[-1].last_sent_navigation_status == RobotOperation.FAIL
+        assert healths[-1].last_sent_producer_session != 0
+        previous_bridge_session = healths[-1].bridge_session
+        process.terminate()
+        process.communicate(timeout=5)
+        process = subprocess.Popen(arguments, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        wait_for(lambda: healths[-1].bridge_session != previous_bridge_session)
+        assert healths[-1].bridge_session != 0
     finally:
         process.terminate()
         try:
