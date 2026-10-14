@@ -55,6 +55,9 @@ target_include_directories(udp_node PUBLIC
 install(TARGETS
   udp_node
   DESTINATION lib/${PROJECT_NAME})
+install(TARGETS udp_channel EXPORT udp_channel_targets
+  ARCHIVE DESTINATION lib LIBRARY DESTINATION lib)
+ament_export_targets(udp_channel_targets HAS_LIBRARY_TARGET)
 
 endif()
 

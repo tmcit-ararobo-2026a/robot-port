@@ -43,3 +43,11 @@ PR #11の初回GitHub CI: 失敗。実機能の単体・結合試験は成功し
 実機、HIL、基板受理、物理停止・負荷試験: 未実施。U1〜U15の外部条件・校正は未確定。
 送信成功は基板受理ACK・全機構停止ではない。既定実機送信は無効。
 未確定契約は [new_mainboard_contract.md](new_mainboard_contract.md) を参照。
+
+## インストール後の通信launch検証と修正
+
+2026-10-14（Asia/Tokyo）、5714916からのCMake差分。managerの通信試験launchで初回・再試行は失敗（ctest終了コード8）。
+udp_nodeの共有依存libudp_channel.soがinstallされていなかった。udp_channelのinstall/exportを追加。
+上記Humble colconビルド（robot_portとauto_mode_manager）、インストールsetupをsourceしたmanagerのCTest2件は成功／終了コード0。
+ログ: `/tmp/stm32-ros2/runtime-fix-build.log`、`manager-t17a-launch-retry.log`（失敗）、`manager-t17a-final-tests.log`（成功）。
+従来のbuildディレクトリ上のcodec/UDP試験に加えて、インストール後のros2 launch送受信を確認した。
