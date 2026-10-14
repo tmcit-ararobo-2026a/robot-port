@@ -1,58 +1,6 @@
 # robot_port
 
-ROS 2 HumbleとSTM32間の通信パッケージ。新UDP対応は `feat/10-stm32-new-udp` で段階的に実装中。
-通信契約・未確定仕様・実機の保留条件は [new_mainboard_contract.md](docs/new_mainboard_contract.md) を参照。
-
-型生成と実行ノードのビルドは `-DBUILD_RUNTIME_NODES=OFF` で分離可能。
-
-## 新通信型・codec（T02a）
-
-`RobotCommand`、`RobotOperation`、`RobotFeedback`、`BridgeHealth`を所有する。
-`wire_codec`は完全長・header・enum・bool・有限float32・[-20,20]のint8角度を検査し、
-明示的little endianの32byteを生成する。予約byteは0。ROSメタデータはwireに含まれない。
-角度配列はmoving, bucket1, bucket2, bucket3, flag, deskの順。
-無効値をクリップせず、スナップショット全体を拒否する。物理範囲・角度無効値は未確定。
-
-## 新UDPノード（T03）
-
-旧44byte指令と部分指令Topicは廃止。入力は `/robot/operation` の全スナップショットのみ。
-出力は `/robot/command`、`/robot/feedback`、`/robot/communication_status`。
-旧feedback分解Topicの代わりに型付き全フィールドを配信する。
-26574はcommand受信専用、39244はoperation送信・feedback受信の共用ソケット。
-受信元IP・ポート・元の完全長・切り詰め・codecをすべて検査し、一括更新する。
-ソケットは非ブロッキング・RAII・排他的bindで、起動時のbind失敗は終了コード1。
-
-`ros2 launch robot_port robot_port.launch.py config:=/absolute/path/udp.yaml`。
-既定設定は送信無効。実機送信は `enable_transmission: true` と
-`physical_contract_confirmed: true` を必要とする。これは確認の記録用であり物理停止の証拠ではない。
-fixtureは `test_mode: true` に加えlocal/peerともIPv4 loopbackが必須。
-
-## Operation watchdog（T04）
-
-起動時・期限切れは自動速度ゼロのFailを送信。単調時計で生成時点から100msを監視する。
-生成stampの過去・未来、重複stamp・更新番号、世代逆行、不正値を拒否し、古い再配信で期限を延長しない。
-ROS時計の停止でも単調期限は失効し、巻戻り・大きい進みでも許可を失効する。
-producer_sessionは再起動で変更し、最初に全ゼロStandby/Failを送る。
-期限切れ後はneutral handshakeの後に新しい世代が必要で、同じ世代の走行は再開しない。
-別sessionによるactive指令の横取りや引退済みsessionの再受信を拒否する。
-
-`BridgeHealth`はcommand/feedback/Operationそれぞれの鮮度、拒否数、受信・送信エラー、
-最後のUDP送信成功を区別する。Fail送信は基板受理・手動運動・物理停止を保証しない。
-
-## 通信結合・故障注入試験（T18a）
-
-`colcon test --packages-select robot_port` と `colcon test-result --verbose`。
-loopback専用pytestで実DDS・実UDPを使用し、packet長・送信元・空packet・旧形式・NaN、
-片方向受信断、publisher停止、期限切れ後の旧世代、重複再配信、試験宛先制限、bind競合を検証する。
-C++単体試験で生成時刻・時計変化・session交代と実際のUDP送信失敗も確認する。
-整形検査は既存 `.clang-format` を使用し、今回の通信コードを対象とする。
-旧CANファイルの整形を本機能に混在させない。CIもビルド後にテストを実行する。
-
-## 従来の環境資料
-
-# base-ros2
-
-ROS2の開発環境がまとめられたdockerfileです。
+ROS 2とSTM32の間で、ロボットの操作要求・動作指令・フィードバックをUDPで送受信するパッケージです。
 2026NHKロボコンAチームのために作成されました。
 
 ## 目次
@@ -65,30 +13,80 @@ ROS2の開発環境がまとめられたdockerfileです。
 6. [ライセンス](#6-ライセンス)
 
 ## 1. 概要
-・ros2のパッケージ関連が一つにまとめられたdockerfile
+
+`udp_node`は操作要求とフィードバックをROSトピックへ配信し、`RobotOperation`の動作指令をUDPパケットへ変換します。通信状態、指令の鮮度、送受信エラーは`BridgeHealth`で確認できます。
 
 ## 2. ドキュメント
 
 | ドキュメント | 説明 |
-| :-: | :-: |
-| [CONTRIBUTING.md](./CONTRIBUTING.md) | 開発フロー・コミット規約・コーディング規約 |
-| [docs/coding-rules.md](./docs/coding-rules.md) | コーディング規約の詳細 |
-| [docs/uml/](./docs/uml/) | UML図 |
+| :--- | :--- |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 開発フロー・コミット規約 |
+| [コーディング規約](docs/coding-rules.md) | コーディング規約の詳細 |
+| [通信仕様](docs/new_mainboard_contract.md) | パケット構成、接続条件、実機で確認が必要な項目 |
+| [通信試験](docs/verification_new_udp.md) | 単体試験・UDP結合試験の結果 |
 
 ## 3. コントリビューション
 
-[CONTRIBUTING.md](./CONTRIBUTING.md) を参照してください。
+[CONTRIBUTING.md](CONTRIBUTING.md)を参照してください。
 
 ## 4. ビルド・使い方
 
-<!-- ビルドのやり方 -->
-<!-- 使い方 -->
+ROS 2 Humbleを使用します。ワークスペースで依存関係をインストールしてからビルドします。
+
+```bash
+cd ~/ros2_ws
+source /opt/ros/humble/setup.bash
+rosdep install --from-paths src/robot-port --ignore-src -y --rosdistro humble
+colcon build --symlink-install --packages-select robot_port
+source install/setup.bash
+ros2 launch robot_port robot_port.launch.py
+```
+
+接続設定は[config/udp.yaml](config/udp.yaml)にあります。別の設定を使う場合はファイルの絶対パスを指定します。
+
+```bash
+ros2 launch robot_port robot_port.launch.py config:=/absolute/path/udp.yaml
+```
+
+既定では送信が無効です。実機へ送信するには`enable_transmission: true`と`physical_contract_confirmed: true`が必要です。後者は接続条件の確認を記録する設定であり、機構の停止や校正を検証する機能ではありません。試験用の`test_mode: true`では、送信元・宛先ともIPv4 loopbackに限ります。
+
+型のみをビルドする場合は`--cmake-args -DBUILD_RUNTIME_NODES=OFF`を指定します。通信試験は次のコマンドで実行します。
+
+```bash
+colcon test --packages-select robot_port
+colcon test-result --verbose
+```
 
 ## 5. システム構成
 
-<!-- ROS2ノード構成・STM32との通信方式・ハードウェア構成 等 -->
-<!-- 依存クラスが3つ以上ある場合は docs/uml/ にUML図を作成し、ここにリンクする -->
+### トピック
+
+| 方向 | トピック | 型 | 内容 |
+| :--- | :--- | :--- | :--- |
+| 入力 | `/robot/operation` | `robot_port/msg/RobotOperation` | 動作指令の全スナップショット |
+| 出力 | `/robot/command` | `robot_port/msg/RobotCommand` | 操作要求 |
+| 出力 | `/robot/feedback` | `robot_port/msg/RobotFeedback` | 基板のフィードバック |
+| 出力 | `/robot/communication_status` | `robot_port/msg/BridgeHealth` | 鮮度、エラー、最後の送信結果 |
+
+### UDP通信
+
+| ポート | 用途 | パケット長 |
+| :--- | :--- | :--- |
+| `26574` | 操作要求の受信 | 8 byte |
+| `39244` | 動作指令の送信／フィードバックの受信 | 32 byte／44 byte |
+
+パケットは明示的なlittle endianで変換します。受信元IP・ポート、完全長、header、enum、bool、浮動小数点の有限値を検査し、不正なスナップショットは全体を拒否します。動作指令の予約byteは0です。角度配列はmoving、bucket1、bucket2、bucket3、flag、deskの順で、int8の範囲は[-20, 20]です。ROS側のsession・世代などのメタデータはUDPパケットへ含めません。
+
+ソケットは非ブロッキングで使用し、bindに失敗した場合は終了コード1で終了します。
+
+### 指令の鮮度監視
+
+Operationの期限は既定で100msです。生成時刻と単調時計を使い、古い指令・重複更新・世代の逆行・不正値を拒否します。ROS時計が停止しても期限は失効し、時計の巻き戻りや大きな進みでも送信許可を失効させます。
+
+送信有効時の起動・期限切れでは、自動速度ゼロのFailを送ります。動作開始には全ゼロのStandbyまたはFailによる中立状態の確認が必要で、期限切れ後は新しい世代を要求します。別sessionによる実行中指令の横取りや、引退済みsessionの指令を受け付けません。
+
+`BridgeHealth`は最後のUDP送信成功と、その指令のsession・世代・状態を公開します。送信成功は基板での受理や物理停止の確認とは別です。
 
 ## 6. ライセンス
 
-本リポジトリは [MITライセンス](./LICENSE) のもとで公開されています。
+本リポジトリは[MITライセンス](LICENSE)のもとで公開されています。
