@@ -34,7 +34,15 @@ target_include_directories(wire_codec PUBLIC
   $<INSTALL_INTERFACE:include>)
 
 if(BUILD_RUNTIME_NODES)
-add_executable(udp_node src/udp_node.cpp src/simple_udp.cpp)
+add_library(udp_channel src/simple_udp.cpp)
+target_include_directories(udp_channel PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
+add_executable(udp_node src/udp_node.cpp)
+target_link_libraries(udp_node wire_codec udp_channel)
+rosidl_get_typesupport_target(cpp_typesupport ${PROJECT_NAME} "rosidl_typesupport_cpp")
+target_link_libraries(udp_node "${cpp_typesupport}")
 ament_target_dependencies(udp_node rclcpp std_msgs geometry_msgs)
 
 target_include_directories(udp_node PUBLIC
@@ -56,6 +64,10 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(wire_codec_test test/wire_codec_test.cpp)
   target_link_libraries(wire_codec_test wire_codec)
+  if(BUILD_RUNTIME_NODES)
+    ament_add_gtest(udp_channel_test test/udp_channel_test.cpp)
+    target_link_libraries(udp_channel_test udp_channel)
+  endif()
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
   # comment the line when a copyright and license is added to all source files
