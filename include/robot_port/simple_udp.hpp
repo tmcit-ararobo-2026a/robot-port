@@ -1,94 +1,54 @@
-/**
- * @file udp_controller.hpp
- * @author gn10
- * @brief LinuxでUDP通信を楽にやるためのクラス
- * @version 0.1
- * @date 2024-08-22
- *
- * @copyright Copyright (c) 2024
- *
- */
+// Copyright 2026 tmcit-ararobo-2026a
+// SPDX-License-Identifier: MIT
 #pragma once
+
 #include <netinet/in.h>
-#include <stdint.h>
 
-class SimpleUDP
-{
-private:
-    int sock_;                    // ソケット
-    struct sockaddr_in tx_addr_;  // 送信先アドレス
-    struct sockaddr_in rx_addr_;  // 受信先アドレス
-    uint8_t rx_buffer_[255];      // 受信データ
+#include <cstddef>
+#include <cstdint>
+#include <span>
+#include <string>
 
-public:
-    SimpleUDP();
-
-    /**
-     * @brief ソケットを作成する
-     *
-     * @return true 作成できた
-     * @return false 作成できなかった
-     */
-    bool initSocket();
-
-    /**
-     * @brief 送信用IPアドレスとポートを設定する
-     *
-     * @param ip_address IPアドレス[uint8 x4]
-     * @param port ポート番号
-     * @return true 成功
-     * @return false 失敗
-     */
-    void setTxAddr(const uint8_t ip_address[4], const uint16_t port);
-
-    /**
-     * @brief バインドする(受信)
-     *
-     * @param ip_address 送信元のIPアドレス
-     * @param port 受信用ポート番号
-     * @return true 成功
-     * @return false 失敗
-     */
-    bool bindSocket(const uint8_t ip_address[4], const uint16_t port);
-
-    /**
-     * @brief パケットを送信する(IPアドレスとポートを個別指定)
-     *
-     * @param data 送信データ
-     * @param data_size 送信データサイズ
-     * @param ip_address 送信先IPアドレス
-     * @param port 送信先ポート
-     * @return true 成功
-     * @return false 失敗
-     */
-    bool sendPacket(
-        uint8_t* data, uint8_t data_size, const uint8_t* ip_address, const uint16_t port
-    );
-
-    /**
-     * @brief パケットを送信する(事前にIPアドレスとポートを指定)
-     *
-     * @param data 送信データ
-     * @param data_size 送信データサイズ
-     * @return true 成功
-     * @return false 失敗
-     */
-    bool sendPacket(uint8_t* data, uint8_t data_size);
-
-    /**
-     * @brief パケットを受信する
-     *
-     * @param buffer 受信したデータを入れるバッファ
-     * @param buffer_size 受信するデータのサイズ又はバッファのサイズ
-     * @return int 受信データのサイズ
-     */
-    int recvPacket(uint8_t* buffer, uint8_t buffer_size);
-
-    void setInterface(const char* interface_name);
-
-    /**
-     * @brief ソケットを閉じる
-     *
-     */
-    void closeSocket();
+namespace robot_port {
+/** @brief IPv4 endpoint with host-order port. */
+struct Endpoint {
+    std::string address;
+    uint16_t port{};
+    /** @brief Compare full source endpoint, including port. */
+    bool operator==(const Endpoint &) const = default;
 };
+
+/** @brief A receive attempt, distinguishing empty datagrams and no data. */
+struct DatagramResult {
+    enum class Status { NO_DATA, RECEIVED, ERROR };
+    Status status{Status::NO_DATA};
+    std::size_t size{};
+    Endpoint source{};
+    bool truncated{};
+    int error_number{};
+};
+
+/** @brief Nonblocking, exclusively bound IPv4 UDP socket with RAII ownership. */
+class UDPChannel
+{
+public:
+    /** @brief Bind once; fail immediately on invalid address or occupied port. */
+    UDPChannel(const Endpoint &local, const Endpoint &peer);
+    /** @brief Close the owned descriptor, including exception paths. */
+    ~UDPChannel();
+    UDPChannel(const UDPChannel &)            = delete;
+    UDPChannel &operator=(const UDPChannel &) = delete;
+    /** @brief Send a complete datagram to the configured peer. */
+    bool send(std::span<const uint8_t> bytes) const;
+    /** @brief Send to an explicit destination, not the configured peer. */
+    bool send_to(std::span<const uint8_t> bytes, const Endpoint &destination) const;
+    /** @brief Receive one datagram and expose original length and truncation. */
+    DatagramResult receive(std::span<uint8_t> buffer) const;
+    /** @brief Return the actual bound port, including ephemeral test ports. */
+    Endpoint local_endpoint() const;
+
+private:
+    int socket_{-1};
+    sockaddr_in peer_address_{};
+};
+}  // namespace robot_port
