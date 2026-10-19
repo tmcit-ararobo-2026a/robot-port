@@ -1,4 +1,4 @@
-"""Launch the new UDP bridge with an explicit configuration file."""
+"""Launch the standard-message UDP bridge with an explicit configuration file."""
 
 import os
 
