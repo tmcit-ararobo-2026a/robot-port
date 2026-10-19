@@ -76,12 +76,15 @@ jobs:
           export ROS_DOMAIN_ID=214
           export ROS_LOG_DIR="${{ runner.temp }}/robot-port-ros-logs"
           python3 - <<'PY'
-          import os
           import socket
           import subprocess
           from pathlib import Path
 
-          prefix = Path(os.environ['RUNNER_TEMP']) / 'robot-port-install' / 'robot_port'
+          from ament_index_python.packages import get_package_prefix
+
+          prefix = Path(get_package_prefix('robot_port'))
+          executable = prefix / 'lib' / 'robot_port' / 'udp_node'
+          assert executable.is_file(), f'Installed udp_node not found: {executable}'
           assert not list(prefix.rglob('*.msg')), 'Unexpected custom ROS interfaces'
           with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as command, \
                   socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as operation:
@@ -92,7 +95,7 @@ jobs:
               operation_port = operation.getsockname()[1]
               assert command_port != operation_port
               process = subprocess.Popen([
-                  str(prefix / 'lib' / 'robot_port' / 'udp_node'), '--ros-args',
+                  str(executable), '--ros-args',
                   '-p', 'local_address:=127.0.0.1', '-p', 'peer_address:=127.0.0.2',
                   '-p', f'command_port:={command_port}',
                   '-p', f'operation_port:={operation_port}',
