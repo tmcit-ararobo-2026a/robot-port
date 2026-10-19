@@ -108,6 +108,7 @@ bool encode_operation(const Operation& operation, std::array<uint8_t, OPERATION_
     }
     std::array<uint8_t, OPERATION_SIZE> bytes{};
     bytes[0] = OPERATION_HEADER;
+    bytes[1] = static_cast<uint8_t>(operation.can_move);
     bytes[2] = operation.target_id;
     bytes[3] = operation.navigation_status;
     write_float(bytes, 4, operation.velocity_x_m_s);

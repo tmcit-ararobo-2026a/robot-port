@@ -56,8 +56,7 @@ jobs:
             --install-base "${{ runner.temp }}/robot-port-install" \
             --cmake-args \
               -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-              -DBUILD_FOR_ROS2=ON
+              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - name: Test
         run: |
           set -e
@@ -68,3 +67,46 @@ jobs:
             --install-base "${{ runner.temp }}/robot-port-install" \
             --event-handlers console_direct+
           colcon test-result --test-result-base "${{ runner.temp }}/robot-port-build" --verbose
+      - name: Standalone standard-message smoke
+        run: |
+          set -e
+          source /opt/ros/humble/setup.bash
+          source "${{ runner.temp }}/robot-port-install/setup.bash"
+          export ROS_LOCALHOST_ONLY=1
+          export ROS_DOMAIN_ID=214
+          export ROS_LOG_DIR="${{ runner.temp }}/robot-port-ros-logs"
+          python3 - <<'PY'
+          import socket
+          import subprocess
+          from pathlib import Path
+
+          from ament_index_python.packages import get_package_prefix
+
+          prefix = Path(get_package_prefix('robot_port'))
+          executable = prefix / 'lib' / 'robot_port' / 'udp_node'
+          assert executable.is_file(), f'Installed udp_node not found: {executable}'
+          assert not list(prefix.rglob('*.msg')), 'Unexpected custom ROS interfaces'
+          with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as command, \
+                  socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as operation:
+              command.bind(('127.0.0.2', 0))
+              operation.bind(('127.0.0.2', 0))
+              operation.settimeout(5)
+              command_port = command.getsockname()[1]
+              operation_port = operation.getsockname()[1]
+              assert command_port != operation_port
+              process = subprocess.Popen([
+                  str(executable), '--ros-args',
+                  '-p', 'local_address:=127.0.0.1', '-p', 'peer_address:=127.0.0.2',
+                  '-p', f'command_port:={command_port}',
+                  '-p', f'operation_port:={operation_port}',
+              ])
+              try:
+                  for _ in range(3):
+                      packet, source = operation.recvfrom(2048)
+                      assert source == ('127.0.0.1', operation_port)
+                      assert packet == bytes([0xAB]) + bytes(31), packet.hex()
+                  print('Standalone startup: three zero-speed Stanby packets; no custom msg files')
+              finally:
+                  process.terminate()
+                  process.wait(timeout=5)
+          PY

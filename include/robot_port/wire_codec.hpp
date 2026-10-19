@@ -38,6 +38,8 @@ struct Operation {
     bool bucket_arm_width_extract{};
     bool bucket_arm_hold{};
     std::array<int8_t, 6> angles_deg{};
+    // LED only; byte 1 was reserved. Never grants or revokes motion permission.
+    bool can_move{};
 };
 
 /** @brief Board measurements, distinct from command acceptance. */
