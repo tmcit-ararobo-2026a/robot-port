@@ -64,14 +64,15 @@ public:
             "belt_launcher_release",
             "belt_launcher_velocity",
             "loading_belt_angle",
-            "bucket_arm_hight"};
+            "bucket_arm_hight"
+        };
         for (std::size_t measurement_index = 0; measurement_index < topics.size();
              ++measurement_index) {
             measurement_pubs_[measurement_index] = create_publisher<Float32>(
                 std::string("/robot/feedback/") + topics[measurement_index], 10
             );
         }
-        request_pub_ = create_publisher<UInt8Array>("/robot/request", 10);
+        request_pub_ = create_publisher<UInt8Array>("/robot/command", 10);
         status_pub_  = create_publisher<UInt8>("/robot/feedback/navigation_status", 10);
         create_inputs();
         receive_timer_ = create_wall_timer(10ms, [this]() { receive_packets(); });
@@ -101,9 +102,11 @@ private:
     template <typename Message, typename Callback>
     void subscribe(const std::string& name, Callback callback)
     {
-        subscriptions_.push_back(create_subscription<Message>(
-            "/robot/command/" + name, rclcpp::QoS(1).durability_volatile(), callback
-        ));
+        subscriptions_.push_back(
+            create_subscription<Message>(
+                "/robot/operation/" + name, rclcpp::QoS(1).durability_volatile(), callback
+            )
+        );
     }
 
     /** @brief Validate a floating setpoint and leave its previous value unchanged on rejection. */
@@ -251,7 +254,8 @@ private:
             feedback.last_belt_launcher_release_velocity_m_s,
             feedback.belt_launcher_velocity_m_s,
             feedback.loading_belt_angle_rad,
-            feedback.bucket_arm_height_m};
+            feedback.bucket_arm_height_m
+        };
         for (std::size_t measurement_index = 0; measurement_index < values.size();
              ++measurement_index) {
             publish_value(measurement_pubs_[measurement_index], values[measurement_index]);
@@ -290,7 +294,8 @@ private:
                     static_cast<uint8_t>(command.logging),
                     command.target_id,
                     command.navigation_command,
-                    static_cast<uint8_t>(command.cloth_collect)}
+                    static_cast<uint8_t>(command.cloth_collect)
+                }
             );
         }
         for (int packet_index = 0; packet_index < 32; ++packet_index) {
