@@ -15,11 +15,13 @@
 #include <std_msgs/msg/u_int8.hpp>
 #include <std_msgs/msg/u_int8_multi_array.hpp>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "robot_port/navigation_state.hpp"
 #include "robot_port/robot_config.hpp"
 #include "robot_port/simple_udp.hpp"
+#include "robot_port/wire_codec.hpp"
 
 namespace robot_port {
 using namespace std::chrono_literals;
@@ -31,6 +33,13 @@ using UInt8Array   = std_msgs::msg::UInt8MultiArray;
 using Int8Array    = std_msgs::msg::Int8MultiArray;
 using Twist        = geometry_msgs::msg::Twist;
 
+/** @brief Convert a four-octet robot configuration address to dotted decimal. */
+std::string ip_address(const uint8_t address[4])
+{
+    return std::to_string(address[0]) + "." + std::to_string(address[1]) + "." +
+           std::to_string(address[2]) + "." + std::to_string(address[3]);
+}
+
 /** @brief Update independent standard inputs and bridge validated 8/32/44-byte UDP packets. */
 class UDPNode : public rclcpp::Node
 {
@@ -38,10 +47,18 @@ public:
     /** @brief Bind two UDP channels before creating the standalone ROS interface. */
     UDPNode() : Node("udp_node")
     {
-        const auto local          = declare_parameter<std::string>("local_address", JETSON_ADDRESS);
-        const auto peer           = declare_parameter<std::string>("peer_address", BOARD_ADDRESS);
-        const auto command_port   = port_parameter("command_port", COMMAND_PORT);
-        const auto operation_port = port_parameter("operation_port", OPERATION_PORT);
+        const auto default_local = ip_address(robot_config::ip::pc_robot);
+        const auto default_peer  = ip_address(robot_config::ip::mainboard);
+        auto local               = declare_parameter<std::string>("local_address", default_local);
+        auto peer                = declare_parameter<std::string>("peer_address", default_peer);
+        if (local.empty()) {
+            local = default_local;
+        }
+        if (peer.empty()) {
+            peer = default_peer;
+        }
+        const auto command_port   = port_parameter("command_port", robot_config::port::command);
+        const auto operation_port = port_parameter("operation_port", robot_config::port::operation);
         if (command_port == operation_port) {
             throw std::invalid_argument("command_port and operation_port must differ");
         }
@@ -52,19 +69,16 @@ public:
         operation_channel_ =
             std::make_unique<UDPChannel>(Endpoint{local, operation_port}, feedback_peer_);
 
-        // Preserve ce821b9's standard feedback topics and their units.
-        sequence_pub_     = create_publisher<UInt8>("/robot/feedback/sequence", 10);
         emergency_pub_    = create_publisher<Bool>("/robot/feedback/emergency_stop", 10);
         over_current_pub_ = create_publisher<Bool>("/robot/feedback/over_current", 10);
         wheel_pub_ = create_publisher<Float32Array>("/robot/feedback/wheel_angular_velocity", 10);
         constexpr std::array<const char*, 7> topics{
             "drive_battery_voltage",
             "drive_current",
-            "belt_launcher_target",
-            "belt_launcher_release",
-            "belt_launcher_velocity",
-            "loading_belt_angle",
-            "bucket_arm_hight"
+            "belt_launcher/target",
+            "belt_launcher/velocity",
+            "belt_launcher/voltage",
+            "belt_launcher/current"
         };
         for (std::size_t measurement_index = 0; measurement_index < topics.size();
              ++measurement_index) {

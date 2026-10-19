@@ -25,6 +25,7 @@ ROS入力が途絶えても最新値を保持します。独自のROSメッセ�
 | :--- | :--- |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 開発フロー・コミット規約 |
 | [コーディング規約](docs/coding-rules.md) | コーディング規約の詳細 |
+| [NavigationState状態遷移図](docs/navigation_state.puml) | ナビゲーション状態の遷移とFail復帰条件 |
 
 ## 3. コントリビューション
 
@@ -116,6 +117,7 @@ bool項目は0/1。対象IDは0=開始位置、1〜3=固定バケツ1〜3、4/5=
 ### 状態遷移
 
 状態値は`Stanby=0, Ready=1, Moving=2, Tracking=3, Goal=4, Fail=5`です。
+詳細な遷移は[NavigationState状態遷移図](docs/navigation_state.puml)を参照してください。
 
 - 起動時はStanby・速度ゼロ。自己位置とナビ状態が未受信なら走行指令を出しません。
 - 両入力が正常ならナビ状態に従います。走行速度はMoving/Tracking時だけ受け付けます。
