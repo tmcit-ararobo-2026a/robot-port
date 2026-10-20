@@ -21,7 +21,6 @@
 #include "robot_port/navigation_state.hpp"
 #include "robot_port/robot_config.hpp"
 #include "robot_port/simple_udp.hpp"
-#include "robot_port/wire_codec.hpp"
 
 namespace robot_port {
 using namespace std::chrono_literals;
@@ -69,8 +68,7 @@ public:
         operation_channel_ =
             std::make_unique<UDPChannel>(Endpoint{local, operation_port}, feedback_peer_);
 
-        emergency_pub_    = create_publisher<Bool>("/robot/feedback/emergency_stop", 10);
-        over_current_pub_ = create_publisher<Bool>("/robot/feedback/over_current", 10);
+        emergency_pub_ = create_publisher<Bool>("/robot/feedback/emergency_stop", 10);
         wheel_pub_ = create_publisher<Float32Array>("/robot/feedback/wheel_angular_velocity", 10);
         constexpr std::array<const char*, 7> topics{
             "drive_battery_voltage",
@@ -142,67 +140,31 @@ private:
             state_changed(previous);
         });
         subscribe<UInt8>("navigation_status", [this](UInt8::ConstSharedPtr message) {
-            if (message->data > static_cast<uint8_t>(NavigationStatus::Fail)) {
+            if (message->data > static_cast<uint8_t>(robot_config::NavigationStatus::Fail)) {
                 reject_input();
                 return;
             }
             const auto previous = state_.status();
-            state_.observe_navigation(static_cast<NavigationStatus>(message->data));
+            state_.observe_navigation(static_cast<robot_config::NavigationStatus>(message->data));
             state_changed(previous);
         });
         subscribe<Twist>("cmd_vel", [this](Twist::ConstSharedPtr message) {
-            for (double value : {message->linear.x, message->linear.y, message->angular.z}) {
-                if (!std::isfinite(value) || std::abs(value) > std::numeric_limits<float>::max()) {
-                    reject_input();
-                    return;
-                }
-            }
-            if (state_.motion_allowed()) {
-                operation_.velocity_x_m_s     = static_cast<float>(message->linear.x);
-                operation_.velocity_y_m_s     = static_cast<float>(message->linear.y);
-                operation_.velocity_yaw_rad_s = static_cast<float>(message->angular.z);
-            }
+            operation_.value.vel_x   = static_cast<float>(message->linear.x);
+            operation_.value.vel_y   = static_cast<float>(message->linear.y);
+            operation_.value.vel_yaw = static_cast<float>(message->angular.z);
         });
         subscribe<UInt8>("target_id", [this](UInt8::ConstSharedPtr message) {
             if (message->data > 7) {
                 reject_input();
                 return;
             }
-            operation_.target_id = message->data;
+            operation_.value.target_id = static_cast<robot_config::TargetId>(message->data);
         });
         subscribe<Float32>("belt_launcher_speed", [this](Float32::ConstSharedPtr message) {
-            if (!std::isfinite(message->data)) {
-                reject_input();
-                return;
-            }
-            if (state_.ready()) {
-                operation_.belt_launcher_speed_m_s = message->data;
-            }
-        });
-        subscribe<Float32>("bucket_arm_height", [this](Float32::ConstSharedPtr message) {
-            set_float(message->data, operation_.bucket_arm_height_m);
-        });
-        subscribe<Bool>("bucket_arm_width_extract", [this](Bool::ConstSharedPtr message) {
-            operation_.bucket_arm_width_extract = message->data;
-        });
-        subscribe<Bool>("bucket_arm_hold", [this](Bool::ConstSharedPtr message) {
-            operation_.bucket_arm_hold = message->data;
+            operation_.value.belt_launcher_speed = message->data;
         });
         subscribe<Bool>("can_move", [this](Bool::ConstSharedPtr message) {
-            operation_.can_move = message->data;
-        });
-        subscribe<Int8Array>("angles_deg", [this](Int8Array::ConstSharedPtr message) {
-            if (message->data.size() != operation_.angles_deg.size()) {
-                reject_input();
-                return;
-            }
-            for (auto angle : message->data) {
-                if (angle < -20 || angle > 20) {
-                    reject_input();
-                    return;
-                }
-            }
-            std::copy(message->data.begin(), message->data.end(), operation_.angles_deg.begin());
+            operation_.value.can_move = message->data;
         });
     }
 
@@ -212,24 +174,11 @@ private:
         RCLCPP_WARN_THROTTLE(get_logger(), log_clock_, 2000, "Rejected invalid ROS input");
     }
 
-    /** @brief Discard chassis commands instead of caching them for a future phase. */
-    void clear_velocity()
-    {
-        operation_.velocity_x_m_s     = 0;
-        operation_.velocity_y_m_s     = 0;
-        operation_.velocity_yaw_rad_s = 0;
-    }
-
     /** @brief Clear stopped output and immediately report entry into explicit Fail. */
-    void state_changed(NavigationStatus previous)
+    void state_changed(robot_config::NavigationStatus previous)
     {
-        if (!state_.motion_allowed()) {
-            clear_velocity();
-        }
-        if (!state_.ready()) {
-            operation_.belt_launcher_speed_m_s = 0;
-        }
-        if (previous != NavigationStatus::Fail && state_.status() == NavigationStatus::Fail) {
+        if (previous != robot_config::NavigationStatus::Fail &&
+            state_.status() == robot_config::NavigationStatus::Fail) {
             RCLCPP_WARN(
                 get_logger(), "NavigationStatus -> Fail: explicit localization/navigation failure"
             );
@@ -249,26 +198,24 @@ private:
     }
 
     /** @brief Publish one accepted feedback snapshot as ce821b9's individual standard topics. */
-    void publish_feedback(const wire::Feedback& feedback)
+    void publish_feedback(const robot_config::feedback_t& feedback)
     {
         publish_value(sequence_pub_, feedback.sequence);
         publish_value(emergency_pub_, feedback.emergency_stop_enabled);
-        publish_value(over_current_pub_, feedback.over_current);
         publish_value(
             wheel_pub_,
             std::vector<float>(
-                feedback.wheel_angular_velocity_rad_s.begin(),
-                feedback.wheel_angular_velocity_rad_s.end()
+                std::begin(feedback.wheel_angular_velocity),
+                std::end(feedback.wheel_angular_velocity)
             )
         );
         const std::array<float, 7> values{
-            feedback.drive_battery_voltage_v,
-            feedback.drive_current_a,
-            feedback.belt_launcher_target_velocity_m_s,
-            feedback.last_belt_launcher_release_velocity_m_s,
-            feedback.belt_launcher_velocity_m_s,
-            feedback.loading_belt_angle_rad,
-            feedback.bucket_arm_height_m
+            feedback.drive_battery_voltages,
+            feedback.drive_current,
+            feedback.belt_launcher_target_velocity,
+            feedback.belt_launcher_velocity,
+            feedback.belt_launcher_voltage,
+            feedback.belt_launcher_current
         };
         for (std::size_t measurement_index = 0; measurement_index < values.size();
              ++measurement_index) {
@@ -280,40 +227,27 @@ private:
     void receive_packets()
     {
         for (int packet_index = 0; packet_index < 32; ++packet_index) {
-            std::array<uint8_t, wire::COMMAND_SIZE> bytes{};
+            std::array<uint8_t, sizeof(robot_config::command_u)> bytes{};
             const auto result = command_channel_->receive(bytes);
             if (result.status == DatagramResult::Status::NO_DATA) {
                 break;
             }
-            wire::Command command{};
+            robot_config::command_u command{};
             if (result.status == DatagramResult::Status::ERROR) {
                 RCLCPP_ERROR_THROTTLE(get_logger(), log_clock_, 2000, "Command UDP receive failed");
                 break;
             }
-            if (result.source != command_peer_ || result.truncated || result.size != bytes.size() ||
-                !wire::decode_command(bytes, command)) {
-                continue;
+            if (result.source == command_peer_ && !result.truncated &&
+                result.size == bytes.size()) {
+                memcpy(command.binary, bytes.data(), sizeof(robot_config::command_u));
             }
+
             // Only a real non-Move-to-Move edge can clear an already healthy Fail latch.
-            if (state_.observe_command(command.navigation_command)) {
-                clear_velocity();
-                operation_.belt_launcher_speed_m_s = 0;
+            if (state_.observe_command((uint8_t)command.value.navigation_command)) {
             }
-            publish_value(
-                request_pub_,
-                std::vector<uint8_t>{
-                    command.sequence,
-                    static_cast<uint8_t>(command.shutdown),
-                    static_cast<uint8_t>(command.localization),
-                    static_cast<uint8_t>(command.logging),
-                    command.target_id,
-                    command.navigation_command,
-                    static_cast<uint8_t>(command.cloth_collect)
-                }
-            );
         }
         for (int packet_index = 0; packet_index < 32; ++packet_index) {
-            std::array<uint8_t, wire::FEEDBACK_SIZE> bytes{};
+            std::array<uint8_t, sizeof(robot_config::feedback_u)> bytes{};
             const auto result = operation_channel_->receive(bytes);
             if (result.status == DatagramResult::Status::NO_DATA) {
                 break;
@@ -324,10 +258,11 @@ private:
                 );
                 break;
             }
-            wire::Feedback feedback{};
+            robot_config::feedback_u feedback{};
             if (result.source == feedback_peer_ && !result.truncated &&
-                result.size == bytes.size() && wire::decode_feedback(bytes, feedback)) {
-                publish_feedback(feedback);
+                result.size == bytes.size()) {
+                memcpy(feedback.binary, bytes.data(), sizeof(robot_config::feedback_u));
+                publish_feedback(feedback.value);
             }
         }
     }
@@ -335,22 +270,14 @@ private:
     /** @brief Send the effective state in byte 3 and LED-only can_move in byte 1. */
     void transmit()
     {
-        operation_.navigation_status = static_cast<uint8_t>(state_.status());
-        if (!state_.motion_allowed()) {
-            clear_velocity();
-        }
-        if (!state_.ready()) {
-            operation_.belt_launcher_speed_m_s = 0;
-        }
-        std::array<uint8_t, wire::OPERATION_SIZE> bytes{};
-        if (!wire::encode_operation(operation_, bytes) || !operation_channel_->send(bytes)) {
+        operation_.value.navigation_status = state_.status();
+        if (operation_channel_->send(operation_.binary)) {
             RCLCPP_ERROR_THROTTLE(get_logger(), log_clock_, 2000, "Operation UDP send failed");
         }
-        publish_value(status_pub_, operation_.navigation_status);
     }
 
     NavigationState state_;
-    wire::Operation operation_{};
+    robot_config::operation_u operation_{};
     std::unique_ptr<UDPChannel> command_channel_, operation_channel_;
     Endpoint command_peer_, feedback_peer_;
     rclcpp::Clock log_clock_{RCL_STEADY_TIME};
