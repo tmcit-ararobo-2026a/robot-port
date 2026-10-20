@@ -45,7 +45,7 @@ public:
         auto local_address       = declare_parameter<std::string>("local_address", default_local);
         auto peer_address        = declare_parameter<std::string>("peer_address", default_peer);
         auto operation_freq      = declare_parameter<int>("operation_freq", 20);
-        auto recieve_timer_freq  = declare_parameter<int>("receive_timer_freq", 100);
+        auto receive_timer_freq  = declare_parameter<int>("receive_timer_freq", 100);
         // アドレスが空白ならデフォルト値を用いる
         if (local_address.empty()) {
             local_address = default_local;
@@ -54,16 +54,9 @@ public:
             peer_address = default_peer;
         }
         // ポートは基本固定
-        const auto command_port   = port_parameter("command_port", robot_config::port::command);
         const auto operation_port = port_parameter("operation_port", robot_config::port::operation);
-        if (command_port == operation_port) {
-            throw std::invalid_argument("command_port and operation_port must differ");
-        }
         // UDPのソケット作成とbind
-        command_peer_  = {peer_address, command_port};
         feedback_peer_ = {peer_address, operation_port};
-        command_channel_ =
-            std::make_unique<UDPChannel>(Endpoint{local_address, command_port}, command_peer_);
         operation_channel_ =
             std::make_unique<UDPChannel>(Endpoint{local_address, operation_port}, feedback_peer_);
 
@@ -90,17 +83,16 @@ public:
         create_inputs();
         // 送受信タイマーをパラメータで指定した周波数で作成
         receive_timer_ = create_wall_timer(
-            std::chrono::milliseconds(1000 / recieve_timer_freq), [this]() { receive_packets(); }
+            std::chrono::milliseconds(1000 / receive_timer_freq), [this]() { receive_packets(); }
         );
         send_timer_ = create_wall_timer(std::chrono::milliseconds(1000 / operation_freq), [this]() {
             transmit();
         });
         RCLCPP_INFO(
             get_logger(),
-            "Standard UDP bridge: %s -> %s, command=%u operation=%u",
+            "Standard UDP bridge: %s -> %s, operation=%u",
             local_address.c_str(),
             peer_address.c_str(),
-            command_port,
             operation_port
         );
     }
@@ -198,26 +190,14 @@ private:
              ++measurement_index) {
             publish_value(measurement_pubs_[measurement_index], values[measurement_index]);
         }
+        publish_value(
+            navigation_command_pub_, static_cast<uint8_t>(feedback.command.navigation_command)
+        );
+        publish_value(target_id_, static_cast<uint8_t>(feedback.command.target_id));
     }
 
     void receive_packets()
     {
-        for (int packet_index = 0; packet_index < 32; ++packet_index) {
-            std::array<uint8_t, sizeof(robot_config::command_u)> bytes{};
-            const auto result = command_channel_->receive(bytes);
-            if (result.status == DatagramResult::Status::NO_DATA) {
-                break;
-            }
-            robot_config::command_u command{};
-            if (result.status == DatagramResult::Status::ERROR) {
-                RCLCPP_ERROR_THROTTLE(get_logger(), log_clock_, 2000, "Command UDP receive failed");
-                break;
-            }
-            if (result.source == command_peer_ && !result.truncated &&
-                result.size == bytes.size()) {
-                memcpy(command.binary, bytes.data(), sizeof(robot_config::command_u));
-            }
-        }
         for (int packet_index = 0; packet_index < 32; ++packet_index) {
             std::array<uint8_t, sizeof(robot_config::feedback_u)> bytes{};
             const auto result = operation_channel_->receive(bytes);
@@ -247,13 +227,15 @@ private:
     }
 
     robot_config::operation_u operation_{};
-    std::unique_ptr<UDPChannel> command_channel_, operation_channel_;
-    Endpoint command_peer_, feedback_peer_;
+    std::unique_ptr<UDPChannel> operation_channel_;
+    Endpoint feedback_peer_;
     rclcpp::Clock log_clock_{RCL_STEADY_TIME};
     std::vector<rclcpp::SubscriptionBase::SharedPtr> subscriptions_;
     rclcpp::Publisher<UInt8>::SharedPtr sequence_pub_, status_pub_;
     rclcpp::Publisher<Bool>::SharedPtr emergency_pub_, over_current_pub_;
     rclcpp::Publisher<Float32Array>::SharedPtr wheel_pub_;
+    rclcpp::Publisher<UInt8>::SharedPtr navigation_command_pub_;
+    rclcpp::Publisher<UInt8>::SharedPtr target_id_;
     std::array<rclcpp::Publisher<Float32>::SharedPtr, 6> measurement_pubs_;
     rclcpp::TimerBase::SharedPtr receive_timer_, send_timer_;
 };
