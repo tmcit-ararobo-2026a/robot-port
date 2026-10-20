@@ -38,11 +38,9 @@ std::string ip_address(const uint8_t address[4])
            std::to_string(address[2]) + "." + std::to_string(address[3]);
 }
 
-/** @brief Update independent standard inputs and bridge validated 8/32/44-byte UDP packets. */
 class UDPNode : public rclcpp::Node
 {
 public:
-    /** @brief Bind two UDP channels before creating the standalone ROS interface. */
     UDPNode() : Node("udp_node")
     {
         const auto default_local = ip_address(robot_config::ip::pc_robot);
@@ -105,7 +103,6 @@ public:
     }
 
 private:
-    /** @brief Reject invalid configuration instead of silently changing the endpoint. */
     uint16_t port_parameter(const std::string& name, uint16_t initial)
     {
         const auto value = declare_parameter<int64_t>(name, initial);
@@ -115,7 +112,6 @@ private:
         return static_cast<uint16_t>(value);
     }
 
-    /** @brief Retain a volatile subscription to the most recent independent input. */
     template <typename Message, typename Callback>
     void subscribe(const std::string& name, Callback callback)
     {
@@ -126,7 +122,6 @@ private:
         );
     }
 
-    /** @brief Set up only standard ROS messages; no aggregate operation or heartbeat is used. */
     void create_inputs()
     {
         subscribe<Bool>("fatal_error", [this](Bool::ConstSharedPtr message) {
@@ -157,14 +152,12 @@ private:
         });
     }
 
-    /** @brief Report rejected input without inventing a localization/navigation failure. */
     void reject_input()
     {
         operation_.value.navigation_status = robot_config::NavigationStatus::Fail;
         RCLCPP_WARN_THROTTLE(get_logger(), log_clock_, 2000, "Rejected invalid ROS input");
     }
 
-    /** @brief Publish the data member of a standard message. */
     template <typename Message, typename Value>
     void publish_value(
         const std::shared_ptr<rclcpp::Publisher<Message>>& publisher, const Value& value
@@ -205,7 +198,6 @@ private:
         }
     }
 
-    /** @brief Drain bounded packet batches so a flood cannot starve ROS callbacks or sending. */
     void receive_packets()
     {
         for (int packet_index = 0; packet_index < 32; ++packet_index) {
@@ -245,7 +237,6 @@ private:
         }
     }
 
-    /** @brief Send the effective state in byte 3 and LED-only can_move in byte 1. */
     void transmit()
     {
         if (!operation_channel_->send(operation_.binary)) {
@@ -267,7 +258,6 @@ private:
 };
 }  // namespace robot_port
 
-/** @brief Run the standalone bridge; invalid endpoint configuration exits visibly. */
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);
