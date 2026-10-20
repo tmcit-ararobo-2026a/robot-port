@@ -248,7 +248,7 @@ private:
     /** @brief Send the effective state in byte 3 and LED-only can_move in byte 1. */
     void transmit()
     {
-        if (operation_channel_->send(operation_.binary)) {
+        if (!operation_channel_->send(operation_.binary)) {
             RCLCPP_ERROR_THROTTLE(get_logger(), log_clock_, 2000, "Operation UDP send failed");
         }
     }
