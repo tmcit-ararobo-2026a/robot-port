@@ -18,7 +18,6 @@
 #include <string>
 #include <vector>
 
-#include "robot_port/navigation_state.hpp"
 #include "robot_port/robot_config.hpp"
 #include "robot_port/simple_udp.hpp"
 
@@ -127,32 +126,19 @@ private:
         );
     }
 
-    /** @brief Validate a floating setpoint and leave its previous value unchanged on rejection. */
-    void set_float(float value, float& destination)
-    {
-        if (!std::isfinite(value)) {
-            reject_input();
-            return;
-        }
-        destination = value;
-    }
-
     /** @brief Set up only standard ROS messages; no aggregate operation or heartbeat is used. */
     void create_inputs()
     {
-        subscribe<Bool>("localization_valid", [this](Bool::ConstSharedPtr message) {
-            const auto previous = state_.status();
-            state_.observe_localization(message->data);
-            state_changed(previous);
+        subscribe<Bool>("fatal_error", [this](Bool::ConstSharedPtr message) {
+            operation_.value.fatal_error = static_cast<bool>(message->data);
         });
         subscribe<UInt8>("navigation_status", [this](UInt8::ConstSharedPtr message) {
             if (message->data > static_cast<uint8_t>(robot_config::NavigationStatus::Fail)) {
                 reject_input();
                 return;
             }
-            const auto previous = state_.status();
-            state_.observe_navigation(static_cast<robot_config::NavigationStatus>(message->data));
-            state_changed(previous);
+            operation_.value.navigation_status =
+                static_cast<robot_config::NavigationStatus>(message->data);
         });
         subscribe<Twist>("cmd_vel", [this](Twist::ConstSharedPtr message) {
             operation_.value.vel_x   = static_cast<float>(message->linear.x);
@@ -169,27 +155,13 @@ private:
         subscribe<Float32>("belt_launcher_speed", [this](Float32::ConstSharedPtr message) {
             operation_.value.belt_launcher_speed = message->data;
         });
-        subscribe<UInt8>("error_code", [this](UInt8::ConstSharedPtr message) {
-            operation_.value.error_code = static_cast<robot_config::ErrorCode>(message->data);
-        });
     }
 
     /** @brief Report rejected input without inventing a localization/navigation failure. */
     void reject_input()
     {
+        operation_.value.navigation_status = robot_config::NavigationStatus::Fail;
         RCLCPP_WARN_THROTTLE(get_logger(), log_clock_, 2000, "Rejected invalid ROS input");
-    }
-
-    /** @brief Clear stopped output and immediately report entry into explicit Fail. */
-    void state_changed(robot_config::NavigationStatus previous)
-    {
-        if (previous != robot_config::NavigationStatus::Fail &&
-            state_.status() == robot_config::NavigationStatus::Fail) {
-            RCLCPP_WARN(
-                get_logger(), "NavigationStatus -> Fail: explicit localization/navigation failure"
-            );
-            transmit();
-        }
     }
 
     /** @brief Publish the data member of a standard message. */
@@ -251,10 +223,6 @@ private:
                 result.size == bytes.size()) {
                 memcpy(command.binary, bytes.data(), sizeof(robot_config::command_u));
             }
-
-            // Only a real non-Move-to-Move edge can clear an already healthy Fail latch.
-            if (state_.observe_command((uint8_t)command.value.navigation_command)) {
-            }
         }
         for (int packet_index = 0; packet_index < 32; ++packet_index) {
             std::array<uint8_t, sizeof(robot_config::feedback_u)> bytes{};
@@ -280,13 +248,11 @@ private:
     /** @brief Send the effective state in byte 3 and LED-only can_move in byte 1. */
     void transmit()
     {
-        operation_.value.navigation_status = state_.status();
         if (operation_channel_->send(operation_.binary)) {
             RCLCPP_ERROR_THROTTLE(get_logger(), log_clock_, 2000, "Operation UDP send failed");
         }
     }
 
-    NavigationState state_;
     robot_config::operation_u operation_{};
     std::unique_ptr<UDPChannel> command_channel_, operation_channel_;
     Endpoint command_peer_, feedback_peer_;
