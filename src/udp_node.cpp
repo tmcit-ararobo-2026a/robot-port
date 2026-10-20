@@ -79,6 +79,9 @@ public:
         }
         // 結局のステータス
         status_pub_ = create_publisher<UInt8>("/robot/feedback/navigation_status", 10);
+        // メイン基板からの司令
+        navigation_command_pub_ = create_publisher<UInt8>("/robot/navigation_command", 10);
+        target_id_              = create_publisher<UInt8>("/robot/target_id", 10);
         // Operationデータ送信用にROS2の受信
         create_inputs();
         // 送受信タイマーをパラメータで指定した周波数で作成
