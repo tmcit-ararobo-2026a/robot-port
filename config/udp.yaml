@@ -4,3 +4,5 @@ udp_node:
     peer_address: ""
     command_port: 26574
     operation_port: 39244
+    operation_freq: 20
+    receive_timer_freq: 100
