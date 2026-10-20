@@ -43,23 +43,27 @@ class UDPNode : public rclcpp::Node
 public:
     UDPNode() : Node("udp_node")
     {
+        // パラメータ
         const auto default_local = ip_address(robot_config::ip::pc_robot);
         const auto default_peer  = ip_address(robot_config::ip::mainboard);
         auto local_address       = declare_parameter<std::string>("local_address", default_local);
         auto peer_address        = declare_parameter<std::string>("peer_address", default_peer);
         auto operation_freq      = declare_parameter<int>("operation_freq", 20);
         auto recieve_timer_freq  = declare_parameter<int>("receive_timer_freq", 100);
+        // アドレスが空白ならデフォルト値を用いる
         if (local_address.empty()) {
             local_address = default_local;
         }
         if (peer_address.empty()) {
             peer_address = default_peer;
         }
+        // ポートは基本固定
         const auto command_port   = port_parameter("command_port", robot_config::port::command);
         const auto operation_port = port_parameter("operation_port", robot_config::port::operation);
         if (command_port == operation_port) {
             throw std::invalid_argument("command_port and operation_port must differ");
         }
+        // UDPのソケット作成とbind
         command_peer_  = {peer_address, command_port};
         feedback_peer_ = {peer_address, operation_port};
         command_channel_ =
@@ -67,9 +71,10 @@ public:
         operation_channel_ =
             std::make_unique<UDPChannel>(Endpoint{local_address, operation_port}, feedback_peer_);
 
+        // ROS2のインターフェイス
         emergency_pub_ = create_publisher<Bool>("/robot/feedback/emergency_stop", 10);
         wheel_pub_ = create_publisher<Float32Array>("/robot/feedback/wheel_angular_velocity", 10);
-        constexpr std::array<const char*, 7> topics{
+        constexpr std::array<const char*, 6> topics{
             "drive_battery_voltage",
             "drive_current",
             "belt_launcher/target",
@@ -83,9 +88,13 @@ public:
                 std::string("/robot/feedback/") + topics[measurement_index], 10
             );
         }
+        // 結局のステータス
+        status_pub_ = create_publisher<UInt8>("/robot/feedback/navigation_status", 10);
+        // メイン基板からの司令
         request_pub_ = create_publisher<UInt8Array>("/robot/command", 10);
-        status_pub_  = create_publisher<UInt8>("/robot/feedback/navigation_status", 10);
+        // Operationデータ送信用にROS2の受信
         create_inputs();
+        // 送受信タイマーをパラメータで指定した周波数で作成
         receive_timer_ = create_wall_timer(
             std::chrono::milliseconds(1000 / recieve_timer_freq), [this]() { receive_packets(); }
         );
@@ -184,7 +193,7 @@ private:
                 std::end(feedback.wheel_angular_velocity)
             )
         );
-        const std::array<float, 7> values{
+        const std::array<float, 6> values{
             feedback.drive_battery_voltages,
             feedback.drive_current,
             feedback.belt_launcher_target_velocity,
@@ -252,7 +261,7 @@ private:
     rclcpp::Publisher<UInt8>::SharedPtr sequence_pub_, status_pub_;
     rclcpp::Publisher<Bool>::SharedPtr emergency_pub_, over_current_pub_;
     rclcpp::Publisher<Float32Array>::SharedPtr wheel_pub_;
-    std::array<rclcpp::Publisher<Float32>::SharedPtr, 7> measurement_pubs_;
+    std::array<rclcpp::Publisher<Float32>::SharedPtr, 6> measurement_pubs_;
     rclcpp::Publisher<UInt8Array>::SharedPtr request_pub_;
     rclcpp::TimerBase::SharedPtr receive_timer_, send_timer_;
 };
