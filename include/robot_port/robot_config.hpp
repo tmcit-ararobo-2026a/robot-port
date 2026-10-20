@@ -2,8 +2,8 @@
  * @file robot_data_config.hpp
  * @author tmcit-ararobo-2026a
  * @brief ロボットの通信データ構造体定義
- * @version 3.0
- * @date 2026-10-05
+ * @version 4.0
+ * @date 2026-10-20
  *
  * @copyright Copyright (c) 2026
  *
@@ -41,6 +41,13 @@ constexpr uint8_t pc_robot[]  = {192, 168, 3, 1};
 constexpr uint8_t pc_wifi[]   = {192, 168, 2, 1};
 constexpr uint8_t teleop[]    = {192, 168, 2, 2};
 }  // namespace ip
+
+enum class ErrorCode : uint8_t {
+    None,  // 問題なし
+    RealsenseConnectionFail,  // Realsenseに接続できない、または雑巾追跡ノードが起動していない（自動モードで問題ないが念の為）
+    DangerousArea,  // ロボットが危険領域に侵入した（ロボットを手動操縦で安全領域に移動することで再開可能）
+    LocalizationFail,  // 自己位置推定失敗
+};
 
 enum class TargetId : uint8_t {
     StartZone,
@@ -96,7 +103,7 @@ static_assert(sizeof(command_t) == 8);
 struct operation_t {
     // 識別ヘッダー 1byte
     uint8_t header;
-    uint8_t can_move;                    // 移動可能かどうか
+    ErrorCode error_code;                // エラーコード
     TargetId target_id;                  // 移動先
     NavigationStatus navigation_status;  // Navigationの状態
 
