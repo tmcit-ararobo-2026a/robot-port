@@ -63,6 +63,11 @@ enum class NavigationCommand : uint8_t {
     Move,  // 移動命令がある
 };
 
+struct command_t {
+    TargetId target_id;
+    NavigationCommand navigation_command;
+} __attribute__((__packed__));
+
 /**
  * @brief ロボットの動作 44byte
  *
@@ -96,7 +101,7 @@ union operation_u {
 static_assert(sizeof(operation_t) == 26);
 
 /**
- * @brief ロボットのセンサ値などのフィードバック
+ * @brief メイン基板からPCへ
  *
  */
 struct feedback_t {
@@ -119,8 +124,7 @@ struct feedback_t {
     float belt_launcher_current;          // VESCで読んだ電流[A]
 
     // 自動操縦
-    TargetId target_id;
-    NavigationCommand navigation_command;
+    command_t command;  // 司令
 } __attribute__((__packed__));
 
 union feedback_u {

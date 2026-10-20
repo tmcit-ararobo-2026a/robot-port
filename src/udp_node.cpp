@@ -190,8 +190,8 @@ private:
              ++measurement_index) {
             publish_value(measurement_pubs_[measurement_index], values[measurement_index]);
         }
-        publish_value(navigation_command_pub_, feedback.navigation_command);
-        publish_value(target_id_, feedback.target_id);
+        publish_value(navigation_command_pub_, feedback.command.navigation_command);
+        publish_value(target_id_, feedback.command.target_id);
     }
 
     void receive_packets()
