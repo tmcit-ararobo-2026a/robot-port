@@ -190,6 +190,8 @@ private:
              ++measurement_index) {
             publish_value(measurement_pubs_[measurement_index], values[measurement_index]);
         }
+        publish_value(navigation_command_pub_, feedback.navigation_command);
+        publish_value(target_id_, feedback.target_id);
     }
 
     void receive_packets()
@@ -230,6 +232,8 @@ private:
     rclcpp::Publisher<UInt8>::SharedPtr sequence_pub_, status_pub_;
     rclcpp::Publisher<Bool>::SharedPtr emergency_pub_, over_current_pub_;
     rclcpp::Publisher<Float32Array>::SharedPtr wheel_pub_;
+    rclcpp::Publisher<UInt8>::SharedPtr navigation_command_pub_;
+    rclcpp::Publisher<UInt8>::SharedPtr target_id_;
     std::array<rclcpp::Publisher<Float32>::SharedPtr, 6> measurement_pubs_;
     rclcpp::TimerBase::SharedPtr receive_timer_, send_timer_;
 };
