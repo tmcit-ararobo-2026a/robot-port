@@ -48,25 +48,27 @@ public:
     {
         const auto default_local = ip_address(robot_config::ip::pc_robot);
         const auto default_peer  = ip_address(robot_config::ip::mainboard);
-        auto local               = declare_parameter<std::string>("local_address", default_local);
-        auto peer                = declare_parameter<std::string>("peer_address", default_peer);
-        if (local.empty()) {
-            local = default_local;
+        auto local_address       = declare_parameter<std::string>("local_address", default_local);
+        auto peer_address        = declare_parameter<std::string>("peer_address", default_peer);
+        auto operation_freq      = declare_parameter<int>("operation_freq", 20);
+        auto recieve_timer_freq  = declare_parameter<int>("receive_timer_freq", 100);
+        if (local_address.empty()) {
+            local_address = default_local;
         }
-        if (peer.empty()) {
-            peer = default_peer;
+        if (peer_address.empty()) {
+            peer_address = default_peer;
         }
         const auto command_port   = port_parameter("command_port", robot_config::port::command);
         const auto operation_port = port_parameter("operation_port", robot_config::port::operation);
         if (command_port == operation_port) {
             throw std::invalid_argument("command_port and operation_port must differ");
         }
-        command_peer_  = {peer, command_port};
-        feedback_peer_ = {peer, operation_port};
+        command_peer_  = {peer_address, command_port};
+        feedback_peer_ = {peer_address, operation_port};
         command_channel_ =
-            std::make_unique<UDPChannel>(Endpoint{local, command_port}, command_peer_);
+            std::make_unique<UDPChannel>(Endpoint{local_address, command_port}, command_peer_);
         operation_channel_ =
-            std::make_unique<UDPChannel>(Endpoint{local, operation_port}, feedback_peer_);
+            std::make_unique<UDPChannel>(Endpoint{local_address, operation_port}, feedback_peer_);
 
         emergency_pub_ = create_publisher<Bool>("/robot/feedback/emergency_stop", 10);
         wheel_pub_ = create_publisher<Float32Array>("/robot/feedback/wheel_angular_velocity", 10);
@@ -87,13 +89,17 @@ public:
         request_pub_ = create_publisher<UInt8Array>("/robot/command", 10);
         status_pub_  = create_publisher<UInt8>("/robot/feedback/navigation_status", 10);
         create_inputs();
-        receive_timer_ = create_wall_timer(10ms, [this]() { receive_packets(); });
-        send_timer_    = create_wall_timer(100ms, [this]() { transmit(); });
+        receive_timer_ = create_wall_timer(
+            std::chrono::milliseconds(1000 / recieve_timer_freq), [this]() { receive_packets(); }
+        );
+        send_timer_ = create_wall_timer(std::chrono::milliseconds(1000 / operation_freq), [this]() {
+            transmit();
+        });
         RCLCPP_INFO(
             get_logger(),
             "Standard UDP bridge: %s -> %s, command=%u operation=%u",
-            local.c_str(),
-            peer.c_str(),
+            local_address.c_str(),
+            peer_address.c_str(),
             command_port,
             operation_port
         );
@@ -197,7 +203,11 @@ private:
         publisher->publish(message);
     }
 
-    /** @brief Publish one accepted feedback snapshot as ce821b9's individual standard topics. */
+    /**
+     * @brief フィードバックをpublish
+     *
+     * @param feedback robot configのFeedbackで、内容が変わったらここも変えないといけない
+     */
     void publish_feedback(const robot_config::feedback_t& feedback)
     {
         publish_value(sequence_pub_, feedback.sequence);
