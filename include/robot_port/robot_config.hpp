@@ -7,9 +7,6 @@
  *
  * @copyright Copyright (c) 2026
  *
- * socket_command (port:26574)
- *  |-  command      main-board  ->  pc
- *
  * socket_operation (port:39244)
  *  |-  operation    pc          ->  main-board
  *  |-  feedback     main-board  ->  pc
@@ -23,14 +20,12 @@
 namespace robot_config {
 
 namespace header {
-constexpr uint8_t command   = 0x38;
 constexpr uint8_t operation = 0xAB;
 constexpr uint8_t feedback  = 0x55;
 constexpr uint8_t teleop    = 0xAA;
 }  // namespace header
 
 namespace port {
-constexpr uint16_t command   = 26574;
 constexpr uint16_t operation = 39244;
 constexpr uint16_t teleop    = 10410;
 }  // namespace port
@@ -67,27 +62,6 @@ enum class NavigationCommand : uint8_t {
     Stanby,  // 命令なし（自動移動であればゴール達成後は何もしない。トラッキングであれば即座にやめる。）
     Move,  // 移動命令がある
 };
-
-struct command_t {
-    uint8_t header;
-    uint8_t sequence;
-    // Jetsonの操作
-    bool shutdown;
-    bool localization;
-    bool logging;
-    // 自動操縦
-    TargetId target_id;
-    NavigationCommand navigation_command;
-    bool cloth_collect;
-
-} __attribute__((__packed__));
-
-union command_u {
-    command_t value;
-    uint8_t binary[sizeof(command_t)];
-} __attribute__((__packed__));
-
-static_assert(sizeof(command_t) == 8);
 
 /**
  * @brief ロボットの動作 44byte
@@ -143,6 +117,10 @@ struct feedback_t {
     float belt_launcher_velocity;         // 現在のベルト直動の速度[m/s]
     float belt_launcher_voltage;          // VESCで読んだ電圧[V]
     float belt_launcher_current;          // VESCで読んだ電流[A]
+
+    // 自動操縦
+    TargetId target_id;
+    NavigationCommand navigation_command;
 } __attribute__((__packed__));
 
 union feedback_u {
@@ -150,7 +128,7 @@ union feedback_u {
     uint8_t binary[sizeof(feedback_t)];
 } __attribute__((__packed__));
 
-static_assert(sizeof(feedback_t) == 40);
+static_assert(sizeof(feedback_t) == 42);
 
 /**
  * @brief ロボットの操縦信号値

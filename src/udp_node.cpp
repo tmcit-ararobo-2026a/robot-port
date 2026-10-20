@@ -54,16 +54,9 @@ public:
             peer_address = default_peer;
         }
         // ポートは基本固定
-        const auto command_port   = port_parameter("command_port", robot_config::port::command);
         const auto operation_port = port_parameter("operation_port", robot_config::port::operation);
-        if (command_port == operation_port) {
-            throw std::invalid_argument("command_port and operation_port must differ");
-        }
         // UDPのソケット作成とbind
-        command_peer_  = {peer_address, command_port};
         feedback_peer_ = {peer_address, operation_port};
-        command_channel_ =
-            std::make_unique<UDPChannel>(Endpoint{local_address, command_port}, command_peer_);
         operation_channel_ =
             std::make_unique<UDPChannel>(Endpoint{local_address, operation_port}, feedback_peer_);
 
@@ -97,10 +90,9 @@ public:
         });
         RCLCPP_INFO(
             get_logger(),
-            "Standard UDP bridge: %s -> %s, command=%u operation=%u",
+            "Standard UDP bridge: %s -> %s, operation=%u",
             local_address.c_str(),
             peer_address.c_str(),
-            command_port,
             operation_port
         );
     }
@@ -203,22 +195,6 @@ private:
     void receive_packets()
     {
         for (int packet_index = 0; packet_index < 32; ++packet_index) {
-            std::array<uint8_t, sizeof(robot_config::command_u)> bytes{};
-            const auto result = command_channel_->receive(bytes);
-            if (result.status == DatagramResult::Status::NO_DATA) {
-                break;
-            }
-            robot_config::command_u command{};
-            if (result.status == DatagramResult::Status::ERROR) {
-                RCLCPP_ERROR_THROTTLE(get_logger(), log_clock_, 2000, "Command UDP receive failed");
-                break;
-            }
-            if (result.source == command_peer_ && !result.truncated &&
-                result.size == bytes.size()) {
-                memcpy(command.binary, bytes.data(), sizeof(robot_config::command_u));
-            }
-        }
-        for (int packet_index = 0; packet_index < 32; ++packet_index) {
             std::array<uint8_t, sizeof(robot_config::feedback_u)> bytes{};
             const auto result = operation_channel_->receive(bytes);
             if (result.status == DatagramResult::Status::NO_DATA) {
@@ -247,8 +223,8 @@ private:
     }
 
     robot_config::operation_u operation_{};
-    std::unique_ptr<UDPChannel> command_channel_, operation_channel_;
-    Endpoint command_peer_, feedback_peer_;
+    std::unique_ptr<UDPChannel> operation_channel_;
+    Endpoint feedback_peer_;
     rclcpp::Clock log_clock_{RCL_STEADY_TIME};
     std::vector<rclcpp::SubscriptionBase::SharedPtr> subscriptions_;
     rclcpp::Publisher<UInt8>::SharedPtr sequence_pub_, status_pub_;
