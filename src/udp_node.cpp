@@ -11,9 +11,7 @@
 #include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/float32.hpp>
 #include <std_msgs/msg/float32_multi_array.hpp>
-#include <std_msgs/msg/int8_multi_array.hpp>
 #include <std_msgs/msg/u_int8.hpp>
-#include <std_msgs/msg/u_int8_multi_array.hpp>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -27,8 +25,6 @@ using Bool         = std_msgs::msg::Bool;
 using Float32      = std_msgs::msg::Float32;
 using Float32Array = std_msgs::msg::Float32MultiArray;
 using UInt8        = std_msgs::msg::UInt8;
-using UInt8Array   = std_msgs::msg::UInt8MultiArray;
-using Int8Array    = std_msgs::msg::Int8MultiArray;
 using Twist        = geometry_msgs::msg::Twist;
 
 /** @brief Convert a four-octet robot configuration address to dotted decimal. */
@@ -90,8 +86,6 @@ public:
         }
         // 結局のステータス
         status_pub_ = create_publisher<UInt8>("/robot/feedback/navigation_status", 10);
-        // メイン基板からの司令
-        request_pub_ = create_publisher<UInt8Array>("/robot/command", 10);
         // Operationデータ送信用にROS2の受信
         create_inputs();
         // 送受信タイマーをパラメータで指定した周波数で作成
@@ -261,7 +255,6 @@ private:
     rclcpp::Publisher<Bool>::SharedPtr emergency_pub_, over_current_pub_;
     rclcpp::Publisher<Float32Array>::SharedPtr wheel_pub_;
     std::array<rclcpp::Publisher<Float32>::SharedPtr, 6> measurement_pubs_;
-    rclcpp::Publisher<UInt8Array>::SharedPtr request_pub_;
     rclcpp::TimerBase::SharedPtr receive_timer_, send_timer_;
 };
 }  // namespace robot_port
