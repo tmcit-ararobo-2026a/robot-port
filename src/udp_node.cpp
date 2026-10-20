@@ -184,7 +184,6 @@ private:
      */
     void publish_feedback(const robot_config::feedback_t& feedback)
     {
-        publish_value(sequence_pub_, feedback.sequence);
         publish_value(emergency_pub_, feedback.emergency_stop_enabled);
         publish_value(
             wheel_pub_,
