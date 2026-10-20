@@ -1,6 +1,6 @@
 udp_node:
   ros__parameters:
-    local_address: "192.168.11.16"
-    peer_address: "192.168.11.19"
+    local_address: ""
+    peer_address: ""
     command_port: 26574
     operation_port: 39244

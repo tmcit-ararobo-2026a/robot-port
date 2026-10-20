@@ -45,7 +45,7 @@ public:
         auto local_address       = declare_parameter<std::string>("local_address", default_local);
         auto peer_address        = declare_parameter<std::string>("peer_address", default_peer);
         auto operation_freq      = declare_parameter<int>("operation_freq", 20);
-        auto recieve_timer_freq  = declare_parameter<int>("receive_timer_freq", 100);
+        auto receive_timer_freq  = declare_parameter<int>("receive_timer_freq", 100);
         // アドレスが空白ならデフォルト値を用いる
         if (local_address.empty()) {
             local_address = default_local;
@@ -83,7 +83,7 @@ public:
         create_inputs();
         // 送受信タイマーをパラメータで指定した周波数で作成
         receive_timer_ = create_wall_timer(
-            std::chrono::milliseconds(1000 / recieve_timer_freq), [this]() { receive_packets(); }
+            std::chrono::milliseconds(1000 / receive_timer_freq), [this]() { receive_packets(); }
         );
         send_timer_ = create_wall_timer(std::chrono::milliseconds(1000 / operation_freq), [this]() {
             transmit();
