@@ -163,8 +163,8 @@ private:
         subscribe<Float32>("belt_launcher_speed", [this](Float32::ConstSharedPtr message) {
             operation_.value.belt_launcher_speed = message->data;
         });
-        subscribe<Bool>("can_move", [this](Bool::ConstSharedPtr message) {
-            operation_.value.can_move = message->data;
+        subscribe<UInt8>("error_code", [this](UInt8::ConstSharedPtr message) {
+            operation_.value.error_code = static_cast<robot_config::ErrorCode>(message->data);
         });
     }
 
