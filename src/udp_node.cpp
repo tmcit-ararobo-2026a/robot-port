@@ -242,9 +242,11 @@ private:
         const auto current_time = std::chrono::steady_clock::now();
         if (current_time - last_localization_success_time_ >= localization_timeout_) {
             operation_.value.localization_success = false;
+            RCLCPP_WARN_THROTTLE(get_logger(), log_clock_, 2000, "Localization health timeout");
         }
         if (current_time - last_navigation_status_time_ >= navigation_status_timeout_) {
             operation_.value.navigation_status = robot_config::NavigationStatus::Fail;
+            RCLCPP_WARN_THROTTLE(get_logger(), log_clock_, 2000, "Navigation health timeout");
         }
     }
 
