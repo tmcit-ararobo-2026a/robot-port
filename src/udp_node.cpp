@@ -39,6 +39,8 @@ class UDPNode : public rclcpp::Node
 public:
     UDPNode() : Node("udp_node")
     {
+        operation_.value.header = robot_config::header::operation;
+
         // パラメータ
         const auto default_local   = ip_address(robot_config::ip::pc_robot);
         const auto default_peer    = ip_address(robot_config::ip::mainboard);
