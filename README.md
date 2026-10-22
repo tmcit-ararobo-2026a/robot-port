@@ -44,7 +44,7 @@ source install-standard/setup.bash
 ros2 launch robot_port robot_port.launch.py
 ```
 
-接続設定は[config/udp.yaml](config/udp.yaml)の4パラメータです。通常起動からUDPを送信します。
+接続設定は[config/udp.yaml](config/udp.yaml)のパラメータで指定します。通常起動からUDPを送信します。
 
 | パラメータ | 既定値 | 内容 |
 | :--- | :--- | :--- |
@@ -52,6 +52,10 @@ ros2 launch robot_port robot_port.launch.py
 | `peer_address` | `192.168.3.2` | メイン基板のIPv4 |
 | `command_port` | `26574` | 基板要求の受信ポート |
 | `operation_port` | `39244` | 動作指令送信・フィードバック受信ポート |
+| `operation_freq` | `20` | 動作指令の送信周期[Hz] |
+| `receive_timer_freq` | `100` | 受信処理と入力タイムアウト判定の周期[Hz] |
+| `localization_timeout_ms` | `1000` | 自己位置推定結果のタイムアウト[ms]。超過時は`false` |
+| `navigation_status_timeout_ms` | `1000` | ナビゲーション状態のタイムアウト[ms]。超過時は`Fail` |
 
 別の設定を使う場合は絶対パスを指定します。
 
@@ -125,7 +129,8 @@ bool項目は0/1。対象IDは0=開始位置、1〜3=固定バケツ1〜3、4/5=
 - 両入力が正常へ戻った後、実際に受信したSleep/Stanbyから新しいMoveへ変化したときだけFailを解除します。同一Moveの再送、sequenceや対象IDの変更では解除しません。
 - 解除直後はReady・速度ゼロです。解除後の新しいナビ状態を受け取り、その後の新しい速度入力を待ちます。
 
-未受信・通知途絶・ROS時計変化・LED用移動不可・正常終了・取消はFail原因にしません。
+- 自己位置推定結果またはナビゲーション状態の受信が対応するタイムアウトを超えると、それぞれ`false`または`Fail`へ遷移します。
+- 未受信・通知途絶（タイムアウト前）・ROS時計変化・LED用移動不可・正常終了・取消はFail原因にしません。
 通常時の入力停止では最後の正常値を送り続けます。基板要求の取消はgoal managerへ中継し、ナビ側が停止状態を通知します。
 自己位置/ナビの状態を標準トピックへ通知する側の接続は必要です。従来のカスタム型を使うmanagerとは互換性がありません。
 

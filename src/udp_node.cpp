@@ -40,12 +40,14 @@ public:
     UDPNode() : Node("udp_node")
     {
         // パラメータ
-        const auto default_local = ip_address(robot_config::ip::pc_robot);
-        const auto default_peer  = ip_address(robot_config::ip::mainboard);
-        auto local_address       = declare_parameter<std::string>("local_address", default_local);
-        auto peer_address        = declare_parameter<std::string>("peer_address", default_peer);
-        auto operation_freq      = declare_parameter<int>("operation_freq", 20);
-        auto receive_timer_freq  = declare_parameter<int>("receive_timer_freq", 100);
+        const auto default_local   = ip_address(robot_config::ip::pc_robot);
+        const auto default_peer    = ip_address(robot_config::ip::mainboard);
+        auto local_address         = declare_parameter<std::string>("local_address", default_local);
+        auto peer_address          = declare_parameter<std::string>("peer_address", default_peer);
+        auto operation_freq        = declare_parameter<int>("operation_freq", 20);
+        auto receive_timer_freq    = declare_parameter<int>("receive_timer_freq", 100);
+        localization_timeout_      = timeout_parameter("localization_timeout_ms", 1000);
+        navigation_status_timeout_ = timeout_parameter("navigation_status_timeout_ms", 1000);
         // アドレスが空白ならデフォルト値を用いる
         if (local_address.empty()) {
             local_address = default_local;
@@ -110,6 +112,16 @@ private:
         return static_cast<uint16_t>(value);
     }
 
+    /** @brief Declare a positive timeout parameter in milliseconds. */
+    std::chrono::milliseconds timeout_parameter(const std::string& name, int initial)
+    {
+        const auto value = declare_parameter<int>(name, initial);
+        if (value < 1) {
+            throw std::invalid_argument(name + " must be greater than zero");
+        }
+        return std::chrono::milliseconds(value);
+    }
+
     template <typename Message, typename Callback>
     void subscribe(const std::string& name, Callback callback)
     {
@@ -122,8 +134,9 @@ private:
 
     void create_inputs()
     {
-        subscribe<Bool>("fatal_error", [this](Bool::ConstSharedPtr message) {
-            operation_.value.fatal_error = static_cast<bool>(message->data);
+        subscribe<Bool>("localization_success", [this](Bool::ConstSharedPtr message) {
+            operation_.value.localization_success = static_cast<bool>(message->data);
+            last_localization_success_time_       = std::chrono::steady_clock::now();
         });
         subscribe<UInt8>("navigation_status", [this](UInt8::ConstSharedPtr message) {
             if (message->data > static_cast<uint8_t>(robot_config::NavigationStatus::Fail)) {
@@ -132,6 +145,7 @@ private:
             }
             operation_.value.navigation_status =
                 static_cast<robot_config::NavigationStatus>(message->data);
+            last_navigation_status_time_ = std::chrono::steady_clock::now();
         });
         subscribe<Twist>("cmd_vel", [this](Twist::ConstSharedPtr message) {
             operation_.value.vel_x   = static_cast<float>(message->linear.x);
@@ -222,8 +236,21 @@ private:
         }
     }
 
+    /** @brief Apply safe input values after localization or navigation input expires. */
+    void update_input_timeouts()
+    {
+        const auto current_time = std::chrono::steady_clock::now();
+        if (current_time - last_localization_success_time_ >= localization_timeout_) {
+            operation_.value.localization_success = false;
+        }
+        if (current_time - last_navigation_status_time_ >= navigation_status_timeout_) {
+            operation_.value.navigation_status = robot_config::NavigationStatus::Fail;
+        }
+    }
+
     void transmit()
     {
+        update_input_timeouts();
         if (!operation_channel_->send(operation_.binary)) {
             RCLCPP_ERROR_THROTTLE(get_logger(), log_clock_, 2000, "Operation UDP send failed");
         }
@@ -233,6 +260,14 @@ private:
     std::unique_ptr<UDPChannel> operation_channel_;
     Endpoint feedback_peer_;
     rclcpp::Clock log_clock_{RCL_STEADY_TIME};
+    std::chrono::milliseconds localization_timeout_{1000};
+    std::chrono::milliseconds navigation_status_timeout_{1000};
+    std::chrono::steady_clock::time_point last_localization_success_time_{
+        std::chrono::steady_clock::now()
+    };
+    std::chrono::steady_clock::time_point last_navigation_status_time_{
+        std::chrono::steady_clock::now()
+    };
     std::vector<rclcpp::SubscriptionBase::SharedPtr> subscriptions_;
     rclcpp::Publisher<UInt8>::SharedPtr sequence_pub_, status_pub_;
     rclcpp::Publisher<Bool>::SharedPtr emergency_pub_, over_current_pub_;
