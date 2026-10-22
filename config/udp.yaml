@@ -6,3 +6,5 @@ udp_node:
     operation_port: 39244
     operation_freq: 20
     receive_timer_freq: 100
+    localization_timeout_ms: 1000
+    navigation_status_timeout_ms: 1000
