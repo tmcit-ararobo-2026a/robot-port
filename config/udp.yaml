@@ -4,7 +4,7 @@ udp_node:
     peer_address: ""
     command_port: 26574
     operation_port: 39244
-    operation_freq: 20
+    operation_freq: 50
     receive_timer_freq: 100
     localization_timeout_ms: 1000
     navigation_status_timeout_ms: 1000
