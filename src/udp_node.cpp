@@ -86,6 +86,9 @@ public:
         // メイン基板からの司令
         navigation_command_pub_ = create_publisher<UInt8>("/robot/navigation_command", 10);
         target_id_              = create_publisher<UInt8>("/robot/target_id", 10);
+        // 射出カウンタトピック (メイン基板のfeedback.shot_countを配信)
+        shot_count_pub_ = create_publisher<UInt8>("/robot/feedback/shot_count", 10);
+
         // Operationデータ送信用にROS2の受信
         create_inputs();
         // 送受信タイマーをパラメータで指定した周波数で作成
@@ -213,6 +216,7 @@ private:
             navigation_command_pub_, static_cast<uint8_t>(feedback.command.navigation_command)
         );
         publish_value(target_id_, static_cast<uint8_t>(feedback.command.target_id));
+        publish_value(shot_count_pub_, feedback.shot_count);
     }
 
     void receive_packets()
@@ -278,6 +282,7 @@ private:
     rclcpp::Publisher<Float32Array>::SharedPtr wheel_pub_;
     rclcpp::Publisher<UInt8>::SharedPtr navigation_command_pub_;
     rclcpp::Publisher<UInt8>::SharedPtr target_id_;
+    rclcpp::Publisher<UInt8>::SharedPtr shot_count_pub_;
     std::array<rclcpp::Publisher<Float32>::SharedPtr, 6> measurement_pubs_;
     rclcpp::TimerBase::SharedPtr receive_timer_, send_timer_;
 };
