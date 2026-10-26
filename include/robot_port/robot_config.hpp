@@ -2,8 +2,8 @@
  * @file robot_data_config.hpp
  * @author tmcit-ararobo-2026a
  * @brief ロボットの通信データ構造体定義
- * @version 4.1
- * @date 2026-10-22
+ * @version 5.0
+ * @date 2026-10-26
  *
  * @copyright Copyright (c) 2026
  *
@@ -125,6 +125,7 @@ struct feedback_t {
 
     // 自動操縦
     command_t command;  // 司令
+    uint8_t shot_count;
 } __attribute__((__packed__));
 
 union feedback_u {
@@ -132,7 +133,7 @@ union feedback_u {
     uint8_t binary[sizeof(feedback_t)];
 } __attribute__((__packed__));
 
-static_assert(sizeof(feedback_t) == 42);
+static_assert(sizeof(feedback_t) == 43);
 
 /**
  * @brief ロボットの操縦信号値
