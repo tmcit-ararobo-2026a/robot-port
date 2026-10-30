@@ -105,7 +105,8 @@ colcon test-result --test-result-base build-standard --verbose
 | `/robot/feedback/over_current` | `std_msgs/Bool` | 過電流状態 |
 | `/robot/feedback/drive_battery_voltage` | `std_msgs/Float32` | 電圧[V] |
 | `/robot/feedback/drive_current` | `std_msgs/Float32` | 電流[A] |
-| `/robot/feedback/belt_launcher_target` | `std_msgs/Float32` | 基板の目標ベルト速度[m/s] |
+| `/robot/feedback/belt_launcher_target` | `std_msgs/Float32` | 射出時リリース目標値[m/s]（1射出1値） |
+| `/robot/feedback/belt_launcher/command` | `std_msgs/Float32` | 連続指令速度[m/s]（VESCへの連続指令値） |
 | `/robot/feedback/belt_launcher_release` | `std_msgs/Float32` | 直前の射出初速[m/s] |
 | `/robot/feedback/wheel_angular_velocity` | `std_msgs/Float32MultiArray` | 前・左・右の車輪角速度[rad/s] |
 | `/robot/feedback/belt_launcher_velocity` | `std_msgs/Float32` | ベルト速度[m/s] |
