@@ -67,10 +67,11 @@ public:
         // ROS2のインターフェイス
         emergency_pub_ = create_publisher<Bool>("/robot/feedback/emergency_stop", 10);
         wheel_pub_ = create_publisher<Float32Array>("/robot/feedback/wheel_angular_velocity", 10);
-        constexpr std::array<const char*, 6> topics{
+        constexpr std::array<const char*, 7> topics{
             "drive_battery_voltage",
             "drive_current",
             "belt_launcher/target",
+            "belt_launcher/command",
             "belt_launcher/velocity",
             "belt_launcher/voltage",
             "belt_launcher/current"
@@ -200,10 +201,11 @@ private:
                 std::end(feedback.wheel_angular_velocity)
             )
         );
-        const std::array<float, 6> values{
+        const std::array<float, 7> values{
             feedback.drive_battery_voltages,
             feedback.drive_current,
             feedback.belt_launcher_target_velocity,
+            feedback.belt_launcher_command_velocity,
             feedback.belt_launcher_velocity,
             feedback.belt_launcher_voltage,
             feedback.belt_launcher_current
@@ -283,7 +285,7 @@ private:
     rclcpp::Publisher<UInt8>::SharedPtr navigation_command_pub_;
     rclcpp::Publisher<UInt8>::SharedPtr target_id_;
     rclcpp::Publisher<UInt8>::SharedPtr shot_count_pub_;
-    std::array<rclcpp::Publisher<Float32>::SharedPtr, 6> measurement_pubs_;
+    std::array<rclcpp::Publisher<Float32>::SharedPtr, 7> measurement_pubs_;
     rclcpp::TimerBase::SharedPtr receive_timer_, send_timer_;
 };
 }  // namespace robot_port
