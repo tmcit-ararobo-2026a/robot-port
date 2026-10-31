@@ -80,16 +80,12 @@ colcon test-result --test-result-base build-standard --verbose
 
 | トピック | 型 | 内容 |
 | :--- | :--- | :--- |
-| `/robot/command/localization_valid` | `std_msgs/Bool` | 現在の自己位置推定結果が利用可能か |
-| `/robot/command/navigation_status` | `std_msgs/UInt8` | ナビゲーションの状態、0〜5 |
-| `/robot/command/cmd_vel` | `geometry_msgs/Twist` | 並進速度[m/s]・Yaw角速度[rad/s] |
-| `/robot/command/target_id` | `std_msgs/UInt8` | 対象ID、0〜7 |
-| `/robot/command/belt_launcher_speed` | `std_msgs/Float32` | ベルト速度[m/s] |
-| `/robot/command/bucket_arm_height` | `std_msgs/Float32` | アーム高さ[m] |
-| `/robot/command/bucket_arm_width_extract` | `std_msgs/Bool` | アーム展開 |
-| `/robot/command/bucket_arm_hold` | `std_msgs/Bool` | アーム保持 |
-| `/robot/command/angles_deg` | `std_msgs/Int8MultiArray` | 角度6要素、各−20〜20度 |
-| `/robot/command/can_move` | `std_msgs/Bool` | LED用の移動可否。速度抑制には使用しない |
+| `/robot/operation/localization_success` | `std_msgs/Bool` | 現在の自己位置推定結果が利用可能か |
+| `/robot/operation/navigation_status` | `std_msgs/UInt8` | ナビゲーションの状態、0〜5 |
+| `/robot/operation/cmd_vel` | `geometry_msgs/Twist` | 並進速度[m/s]・Yaw角速度[rad/s] |
+| `/robot/operation/target_id` | `std_msgs/UInt8` | 対象ID、0〜7 |
+| `/robot/operation/belt_launcher_speed` | `std_msgs/Float32` | ベルト速度[m/s] |
+| `/robot/operation/target_angles` | `std_msgs/Int8MultiArray` | 水平角6要素（移動バケツ、バケツ1〜3、旗、机。-20〜20degを-127〜127に対応、範囲外はINT8_MIN） |
 
 角度順は移動バケツ、固定バケツ1、2、3、旗、机です。角度はそのまま符号付き度数として送ります。
 不正な要素数・範囲・NaN・無限値は入力全体を拒否し、最後の正常値を保持します。不正入力自体をFail原因にはしません。

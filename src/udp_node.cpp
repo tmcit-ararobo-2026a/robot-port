@@ -11,6 +11,7 @@
 #include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/float32.hpp>
 #include <std_msgs/msg/float32_multi_array.hpp>
+#include <std_msgs/msg/int8_multi_array.hpp>
 #include <std_msgs/msg/u_int8.hpp>
 #include <stdexcept>
 #include <string>
@@ -24,6 +25,7 @@ using namespace std::chrono_literals;
 using Bool         = std_msgs::msg::Bool;
 using Float32      = std_msgs::msg::Float32;
 using Float32Array = std_msgs::msg::Float32MultiArray;
+using Int8Array    = std_msgs::msg::Int8MultiArray;
 using UInt8        = std_msgs::msg::UInt8;
 using Twist        = geometry_msgs::msg::Twist;
 
@@ -39,7 +41,13 @@ class UDPNode : public rclcpp::Node
 public:
     UDPNode() : Node("udp_node")
     {
-        operation_.value.header = robot_config::header::operation;
+        operation_.value.header                = robot_config::header::operation;
+        operation_.value.move_bucket_angle_yaw = INT8_MIN;
+        operation_.value.bucket1_angle_yaw     = INT8_MIN;
+        operation_.value.bucket2_angle_yaw     = INT8_MIN;
+        operation_.value.bucket3_angle_yaw     = INT8_MIN;
+        operation_.value.flag_angle_yaw        = INT8_MIN;
+        operation_.value.desk_angle_yaw        = INT8_MIN;
 
         // パラメータ
         const auto default_local   = ip_address(robot_config::ip::pc_robot);
@@ -74,8 +82,7 @@ public:
             "belt_launcher/command",
             "belt_launcher/velocity",
             "belt_launcher/voltage",
-            "belt_launcher/current"
-        };
+            "belt_launcher/current"};
         for (std::size_t measurement_index = 0; measurement_index < topics.size();
              ++measurement_index) {
             measurement_pubs_[measurement_index] = create_publisher<Float32>(
@@ -131,11 +138,9 @@ private:
     template <typename Message, typename Callback>
     void subscribe(const std::string& name, Callback callback)
     {
-        subscriptions_.push_back(
-            create_subscription<Message>(
-                "/robot/operation/" + name, rclcpp::QoS(1).durability_volatile(), callback
-            )
-        );
+        subscriptions_.push_back(create_subscription<Message>(
+            "/robot/operation/" + name, rclcpp::QoS(1).durability_volatile(), callback
+        ));
     }
 
     void create_inputs()
@@ -167,6 +172,24 @@ private:
         });
         subscribe<Float32>("belt_launcher_speed", [this](Float32::ConstSharedPtr message) {
             operation_.value.belt_launcher_speed = message->data;
+        });
+        subscribe<Int8Array>("target_angles", [this](Int8Array::ConstSharedPtr message) {
+            if (message->data.size() != 6) {
+                RCLCPP_WARN_THROTTLE(
+                    get_logger(),
+                    log_clock_,
+                    2000,
+                    "target_angles must have 6 elements, received %zu",
+                    message->data.size()
+                );
+                return;
+            }
+            operation_.value.move_bucket_angle_yaw = message->data[0];
+            operation_.value.bucket1_angle_yaw     = message->data[1];
+            operation_.value.bucket2_angle_yaw     = message->data[2];
+            operation_.value.bucket3_angle_yaw     = message->data[3];
+            operation_.value.flag_angle_yaw        = message->data[4];
+            operation_.value.desk_angle_yaw        = message->data[5];
         });
     }
 
@@ -208,8 +231,7 @@ private:
             feedback.belt_launcher_command_velocity,
             feedback.belt_launcher_velocity,
             feedback.belt_launcher_voltage,
-            feedback.belt_launcher_current
-        };
+            feedback.belt_launcher_current};
         for (std::size_t measurement_index = 0; measurement_index < values.size();
              ++measurement_index) {
             publish_value(measurement_pubs_[measurement_index], values[measurement_index]);
@@ -273,11 +295,9 @@ private:
     std::chrono::milliseconds localization_timeout_{1000};
     std::chrono::milliseconds navigation_status_timeout_{1000};
     std::chrono::steady_clock::time_point last_localization_success_time_{
-        std::chrono::steady_clock::now()
-    };
+        std::chrono::steady_clock::now()};
     std::chrono::steady_clock::time_point last_navigation_status_time_{
-        std::chrono::steady_clock::now()
-    };
+        std::chrono::steady_clock::now()};
     std::vector<rclcpp::SubscriptionBase::SharedPtr> subscriptions_;
     rclcpp::Publisher<UInt8>::SharedPtr sequence_pub_, status_pub_;
     rclcpp::Publisher<Bool>::SharedPtr emergency_pub_, over_current_pub_;
