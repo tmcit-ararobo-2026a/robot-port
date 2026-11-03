@@ -14,7 +14,7 @@ def generate_launch_description():
     default_config = os.path.join(
         get_package_share_directory('robot_port'), 'config', 'udp.yaml')
     return LaunchDescription([
-        DeclareLaunchArgument('config', default_value=default_config),
+        DeclareLaunchArgument('port_config_file', default_value=default_config),
         Node(package='robot_port', executable='udp_node', name='udp_node',
-             parameters=[LaunchConfiguration('config')], output='screen'),
+             parameters=[LaunchConfiguration('port_config_file')], output='screen'),
     ])
